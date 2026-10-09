@@ -198,6 +198,8 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
                      &ScenarioConfig::left_team_difficulty)
       .def_readwrite("right_team_difficulty",
                      &ScenarioConfig::right_team_difficulty)
+      .def_readwrite("realistic_player_physics",
+                     &ScenarioConfig::realistic_player_physics)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
                      &ScenarioConfig::end_episode_on_score)

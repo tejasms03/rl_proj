@@ -34,6 +34,11 @@ Team = libgame.e_Team
 PLAYER_STATS = {name: int(value) for name, value in libgame.e_PlayerStat.names.items()}
 PREFERRED_FOOT = {None: 0, 'right': 1, 'left': 2}
 
+# rl_project patch switches (ScenarioConfig fields, all off by default).
+# Scenarios may set them via builder.config(); an env option of the same
+# name (other_config_options) takes precedence.
+PATCH_SWITCHES = ('realistic_player_physics',)
+
 
 def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
   """rl_project P1: validate and store per-player overrides on an entry."""
@@ -90,7 +95,13 @@ class Scenario(object):
     self.SetTeam(libgame.e_Team.e_Right)
     self._FakePlayersForEmptyTeam(self._scenario_cfg.right_team)
     self._ApplyPlayerOverrides()
+    self._ApplyPatchSwitches()
     self._BuildScenarioConfig()
+
+  def _ApplyPatchSwitches(self):
+    for name in PATCH_SWITCHES:
+      if name in self._config:
+        setattr(self._scenario_cfg, name, self._config[name])
 
   def _ApplyPlayerOverrides(self):
     """rl_project P1: apply the `player_overrides` env option to any scenario.

@@ -36,6 +36,17 @@ const float animSprintVelocity = 7.0f;
 const float idleDribbleSwitch = 1.8f;
 const float dribbleWalkSwitch = 4.2f;
 const float walkSprintSwitch = 6.0f;
+
+// rl_project P1b (realistic_player_physics): stat -> physical range.
+// Top sprint speed: 7.8 m/s at stat 0 to 9.8 m/s at stat 1, the range of peak
+// speeds measured for professional outfield players in matches.
+const float p1bTopSpeedMin = 7.8f;
+const float p1bTopSpeedRange = 2.0f;
+// Acceleration force multiplier: base + range * acceleration stat. Upstream
+// is 0.7 + 0.3 * stat; its 10/20 m splits are already realistic for an
+// average player, so keep the same value at stat 0.5 and double the spread.
+const float p1bAccelBase = 0.45f;
+const float p1bAccelRange = 0.35f;
 // PES6 digital control mode, quantizes some input to x degree angles
 const bool quantizeDirection = true;
 

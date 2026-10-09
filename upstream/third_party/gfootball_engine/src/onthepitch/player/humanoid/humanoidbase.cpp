@@ -1851,7 +1851,13 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
     }
   }
 
-  float maximumOutgoingVelocity = sprintVelocity;
+  // rl_project P1b: with realistic_player_physics, players faster than
+  // sprintVelocity must not be capped at it when running straight.
+  const float topVelocity =
+      GetScenarioConfig().realistic_player_physics
+          ? std::max(sprintVelocity, player->GetMaxVelocity())
+          : sprintVelocity;
+  float maximumOutgoingVelocity = topVelocity;
   // brake on cornering
   if (mod_CorneringBraking) {
     DO_VALIDATION;
@@ -1866,7 +1872,7 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
                                           idleVelocity, sprintVelocity - 0.5f),
                           0.8f);  // 0.5f);
     float maxVelo =
-        sprintVelocity *
+        topVelocity *
         ((1.0f - brakeBias) +
          ((1.0f -
            std::pow(fabs(animOutgoingMovement.GetNormalized(0).GetAngle2D(
@@ -1937,12 +1943,19 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
     if (maxFaster > 0) maxFaster *= std::max(0.0f, adaptedAnimMovement.GetNormalizedMax(1.0f).GetDotProduct(adaptedDesiredMovement.GetNormalized(0))); // only go faster if it's in the right direction
     if (animType== e_DefString_Sliding) maxFaster = 100;
     float desiredVelocity = adaptedDesiredMovement.GetLength();
+    // rl_project P1b: desired velocity is in sprintVelocity space; stretch it
+    // to the player's own top speed like the anim above, else the clamp below
+    // holds players faster than sprintVelocity at max(8, top - maxSlower).
+    if (GetScenarioConfig().realistic_player_physics &&
+        desiredVelocity > walkSprintSwitch && maxVelocity > sprintVelocity) {
+      desiredVelocity = StretchSprintTo(desiredVelocity, sprintVelocity, maxVelocity);
+    }
     adaptedAnimVelo = clamp(desiredVelocity, adaptedAnimVelo - maxSlower, adaptedAnimVelo + maxFaster);
     adaptedAnimMovement = adaptedAnimMovement.GetNormalized(0) * adaptedAnimVelo;
 
     if (mod_CorneringBraking) {
       DO_VALIDATION;
-      float frameBiasedMaximumOutgoingVelocity = sprintVelocity * (1.0f - frameBias) + maximumOutgoingVelocity * frameBias;
+      float frameBiasedMaximumOutgoingVelocity = topVelocity * (1.0f - frameBias) + maximumOutgoingVelocity * frameBias;
       if (adaptedAnimVelo > frameBiasedMaximumOutgoingVelocity) {
         DO_VALIDATION;
         adaptedAnimVelo = frameBiasedMaximumOutgoingVelocity;
@@ -2139,7 +2152,11 @@ Vector3 HumanoidBase::CalculatePhysicsVector(Animation *anim, bool useDesiredMov
         }
 
         float accelerationAddition = forwardVector.GetLength();
-        float maxAccelerationMPS = accelPower * (1.0f - veloAirResistanceFactor) * (stat_acceleration * 0.3f + 0.7f);
+        float accelerationStatFactor =
+            GetScenarioConfig().realistic_player_physics
+                ? p1bAccelBase + p1bAccelRange * stat_acceleration
+                : stat_acceleration * 0.3f + 0.7f;
+        float maxAccelerationMPS = accelPower * (1.0f - veloAirResistanceFactor) * accelerationStatFactor;
         float maxAccelerationAddition = maxAccelerationMPS * (timeStep_ms / 1000.0f);
         if (accelerationAddition > maxAccelerationAddition) {
           DO_VALIDATION;

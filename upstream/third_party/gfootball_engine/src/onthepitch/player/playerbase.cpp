@@ -132,6 +132,11 @@ float PlayerBase::GetMaxVelocity() const {
 
 float PlayerBase::GetVelocityMultiplier() const {
   // see humanoid_utils' physics function
+  if (GetScenarioConfig().realistic_player_physics) {
+    return (p1bTopSpeedMin +
+            p1bTopSpeedRange * playerData->get_physical_velocity()) /
+           sprintVelocity;
+  }
   return 0.9f + playerData->get_physical_velocity() * 0.1f;
 }
 

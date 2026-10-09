@@ -70,7 +70,31 @@ Already worked out while installing:
 - Top sprint speed is `8 m/s × (0.9 + 0.1 × velocity)`, so 7.2–8.0 m/s across the whole stat range (`playerbase.cpp:133`). Real players range from about 7.5 to about 9.8 m/s.
 - A faster player still wins a footrace for a loose ball 15/15 (AI on both sides), so the effect is consistent, just small.
 - Attackers with *every* stat at 0.9 vs 0.3 score 33% vs 26% in `academy_3_vs_1_with_keeper` (300 episodes each, p ≈ 0.06).
-- Proposal **P1b** (switch, default off): widen how strongly stats affect play, starting with sprint speed and acceleration, calibrated to real data. Not started; needs a decision.
+- Addressed by **P1b** below.
+
+### P1b: realistic player physics (switch `realistic_player_physics`) — **done**
+
+**What:** top speed and acceleration ranges calibrated to real professional players, so stats matter.
+
+**As built:**
+- Top sprint speed = 7.8 + 2.0 × velocity m/s (upstream: 8 × (0.9 + 0.1 × velocity) = 7.2–8.0)
+- Acceleration force factor = 0.45 + 0.35 × acceleration (upstream 0.7 + 0.3 × acceleration)
+- Two upstream caps had to follow the player's own top speed, or nobody could exceed 8 m/s: the cornering brake (`humanoidbase.cpp`, `topVelocity`) and the clamp of animation speed toward the *requested* speed, which is in 8 m/s units (`desiredVelocity` is now stretched like the animation)
+- Switches can be set by a scenario (`builder.config().realistic_player_physics = True`) or as an env option of the same name, which wins; see `scenario_builder.PATCH_SWITCHES`
+- Tool: `python -m grf_tools.sprint [--realistic]`; drill `drill_sprint` (the ball sits with our own keeper: with a loose ball, the engine steers a fast enough controlled player toward it)
+
+**Calibration** (standing start, timed from first movement):
+
+| Velocity / acceleration | 10 m | 20 m | 40 m | Top speed | Reference |
+|---|---|---|---|---|---|
+| 0 / 0 | 2.02 s | 3.36 s | 5.92 s | 7.8 m/s | slow centre-back / keeper, ~5.6–5.9 s for 40 m |
+| 0.5 / 0.5 | 1.79 s | 2.96 s | 5.24 s | 8.8 m/s | elite pro average ≈ 1.78 / 3.0 / 5.2 s |
+| 1 / 1 | 1.60 s | 2.66 s | 4.70 s | 9.8 m/s | fastest wingers ≈ 4.7–4.9 s, ~36 km/h |
+| upstream 0.5 / 0.5 | 1.74 s | 3.06 s | — | 7.6 m/s | |
+
+**Effect:** in `academy_3_vs_1_with_keeper` (AI attackers, 300 episodes each), all stats 0.9 vs 0.3 score 35% vs 18% with the switch on, against 33% vs 26% upstream. AI-vs-AI 11v11: 2.12 goals/match both on and off (8 matches each).
+
+**Note:** sprint animations are stretched to the higher speeds, so very fast players may look like they glide slightly when rendered. Physics and AI timing use the same top speed, so play is consistent.
 
 **Original design notes:**
 

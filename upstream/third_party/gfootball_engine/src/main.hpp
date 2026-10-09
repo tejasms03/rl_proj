@@ -152,6 +152,7 @@ struct ScenarioConfig {
     state->process(game_duration);
     state->process(second_half);
     state->process(control_all_players);
+    state->process(realistic_player_physics);
   }
 
   void ProcessState(EnvState* state) {
@@ -198,6 +199,9 @@ struct ScenarioConfig {
   bool end_episode_on_out_of_play = false;
   int game_duration = 3000;
   bool control_all_players = false;
+  // rl_project patch switches. All default to off = upstream behaviour.
+  // P1b: realistic top speed / acceleration ranges from player stats.
+  bool realistic_player_physics = false;
   int second_half = 999999999;
 
  private:

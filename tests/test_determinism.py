@@ -15,6 +15,7 @@ CONFIGS = {
             "right": {"*": {"stats": {"mental_defensivepositioning": 0.2}}},
         }
     },
+    "p1b_physics": {"realistic_player_physics": True},
 }
 
 
