@@ -16,3 +16,4 @@ upstream/third_party/gfootball_engine/**/*.a
 # local outputs
 runs/
 out/
+upstream/gfootball.egg-info/

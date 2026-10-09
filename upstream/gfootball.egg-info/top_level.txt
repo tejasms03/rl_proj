@@ -1,3 +1,0 @@
-brainball_cpp_engine
-gfootball
-gfootball_engine

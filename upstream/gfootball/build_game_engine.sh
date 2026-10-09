@@ -25,5 +25,6 @@ PARALLELISM=$(python3 -c 'import psutil; import multiprocessing as mp; print(int
 
 # Delete pre-existing version of CMakeCache.txt to make 'python3 -m pip install' work.
 rm -f third_party/gfootball_engine/CMakeCache.txt
-pushd third_party/gfootball_engine && cmake . && make -j $PARALLELISM && popd
+# GFOOTBALL_CMAKE_ARGS: extra configure flags, e.g. to pick the Python install.
+pushd third_party/gfootball_engine && cmake . ${GFOOTBALL_CMAKE_ARGS} && make -j $PARALLELISM && popd
 pushd third_party/gfootball_engine && ln -sf libgame.$LIB_EXTENSION _gameplayfootball.so && popd

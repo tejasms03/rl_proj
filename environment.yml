@@ -1,0 +1,27 @@
+# conda env for building and running the patched GRF engine.
+#   conda env create -f environment.yml && ./build.sh
+name: grf
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - libboost-python-devel=1.85
+  - boost-cpp=1.85
+  - cmake>=3.20
+  - sdl2=2.32
+  - sdl2_image=2.8
+  - sdl2_ttf=2.24
+  - sdl2_gfx=1.0.4
+  - setuptools<66
+  - wheel
+  - psutil
+  - numpy
+  - pip
+  - pip:
+      - gym==0.25.2
+      - six
+      - pygame==2.6.1
+      - opencv-python
+      - absl-py
+      - scipy
+      - pytest

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.5)
 
 if(WIN32)
   # Check for required Environment variables
@@ -168,8 +168,19 @@ else()  # WIN32
   set(LIB_NAME _gameplayfootball)
 endif()
 
+if(APPLE)
+  # A Python extension module must not link libpython on macOS: when the
+  # interpreter has Python statically linked (conda, python.org builds), the
+  # process would end up with two Python runtimes. Resolve Python symbols from
+  # the host interpreter at load time instead.
+  list(REMOVE_ITEM LIBRARIES ${Python_LIBRARIES})
+endif()
+
 add_library(${LIB_NAME} SHARED ${CORE_SOURCES} ${CORE_HEADERS} ${AI_HEADERS} ${AI_SOURCES})
 target_link_libraries(${LIB_NAME} ${LIBRARIES})
+if(APPLE)
+  target_link_options(${LIB_NAME} PRIVATE "-undefined" "dynamic_lookup")
+endif()
 
 if(WIN32)
   set_target_properties(${LIB_NAME} PROPERTIES SUFFIX ".pyd")

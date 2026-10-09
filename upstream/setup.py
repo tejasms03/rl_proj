@@ -144,7 +144,9 @@ setup(
         'opencv-python',
         'psutil',
         'scipy',
-        'gym>=0.11.0',
+        # gym 0.26 changed reset()/step() signatures; the env code uses the old API.
+        'gym==0.25.2',
+        'six',
         'absl-py',
         'wheel',
     ],
