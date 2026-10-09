@@ -125,6 +125,11 @@ action_release_sprint = CoreAction(e_BackendAction.release_sprint,
 action_release_dribble = CoreAction(e_BackendAction.release_dribble,
                                     "release_dribble")
 
+# rl_project P3 kicks: variants of the shot and the ground pass.
+action_curl_shot = CoreAction(e_BackendAction.curl_shot, "curl_shot")
+action_chip = CoreAction(e_BackendAction.chip, "chip")
+action_through_ball = CoreAction(e_BackendAction.through_ball, "through_ball")
+
 # ***** Define some action sets *****
 action_set_v1 = [
     action_idle, action_left, action_top_left, action_top,
@@ -136,6 +141,10 @@ action_set_v1 = [
 
 action_set_v2 = action_set_v1 + [action_builtin_ai]
 
+# rl_project: the default set plus the P3 kicks (22 actions). Use with
+# kick_power_control and realistic_ball_physics.
+action_set_v3 = action_set_v1 + [action_curl_shot, action_chip, action_through_ball]
+
 # Special action set that includes all the core actions in the same order.
 full_action_set = action_set_v2 + [
     action_keeper_rush, action_pressure,
@@ -145,17 +154,23 @@ full_action_set = action_set_v2 + [
     action_release_keeper_rush, action_release_sliding,
     action_release_pressure, action_release_team_pressure,
     action_release_switch,
+    # rl_project P3 (appended so existing indices do not change).
+    action_curl_shot, action_chip, action_through_ball,
 ]
 
 action_set_dict = {
     "default": action_set_v1,
     "v2": action_set_v2,
+    "v3": action_set_v3,
     # "full" action set is needed by the play_game script.
     # Don't use it for training models.
     "full": full_action_set,
 }
 
 reverse_action_mapping = {
+    action_curl_shot: action_release_shot,
+    action_chip: action_release_shot,
+    action_through_ball: action_release_short_pass,
     action_long_pass: action_release_long_pass,
     action_high_pass: action_release_high_pass,
     action_short_pass: action_release_short_pass,

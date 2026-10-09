@@ -1068,6 +1068,22 @@ void AI_GetAutoPass(e_FunctionType passType, const Vector3 &vector,
       powerFactor;
 }
 
+void AI_ApplyThroughBall(Player *passer, Player *target, Vector3 &direction, float &power) {
+  DO_VALIDATION;
+  if (target == 0 || target == passer) return;
+  Vector3 forward(-passer->GetTeam()->GetDynamicSide(), 0, 0);
+  Vector3 lead = target->GetPosition() + target->GetMovement() * 1.2f + forward * 5.0f;
+  Vector3 leadDirection;
+  float leadPower;
+  AI_GetAutoPass(e_FunctionType_ShortPass, (lead - passer->GetPosition()).Get2D(),
+                 leadDirection, leadPower);
+  direction = leadDirection;
+  const ScenarioConfig &scenario = GetScenarioConfig();
+  if (!(scenario.kick_power_control && scenario.pass_power_assist < 0.999f)) {
+    power = leadPower;
+  }
+}
+
 void AI_GetPass(Player *player, e_FunctionType passType,
                 const Vector3 &inputDirection, float inputPower,
                 float autoDirectionBias, float autoPowerBias,

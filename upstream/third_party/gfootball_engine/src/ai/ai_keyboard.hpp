@@ -52,6 +52,9 @@ class AIControlledKeyboard {
     // none (use the hold-to-charge gauge). Set before each step's action.
     void SetKickPower(float power) { kickPower_ = power; }
     float GetKickPower() const { return kickPower_; }
+    // rl_project P3: variant of the last kick pressed (e_KickVariant).
+    void SetKickVariant(int variant) { kickVariant_ = variant; }
+    int GetKickVariant() const { return kickVariant_; }
     bool Disabled() { return disabled_;}
     void SetDisabled(bool disabled);
     void Reset();
@@ -65,6 +68,7 @@ class AIControlledKeyboard {
     bool disabled_ = false;
     bool buttons_pressed_[e_ButtonFunction_Size];
     float kickPower_ = -1.0f;
+    int kickVariant_ = 0;
     const e_PlayerColor playerColor;
 };
 

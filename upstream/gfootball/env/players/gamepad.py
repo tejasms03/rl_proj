@@ -33,6 +33,11 @@ BUTTON_TO_ACTIONS = {
         football_action_set.action_keeper_rush],
     4: [football_action_set.action_switch],
     5: [football_action_set.action_dribble],
+    # rl_project P3 kicks (e.g. Xbox: View/Back = 6, Menu/Start = 7,
+    # left stick click = 8; PlayStation numbering may differ).
+    6: [football_action_set.action_curl_shot],
+    7: [football_action_set.action_chip],
+    8: [football_action_set.action_through_ball],
 }
 
 
@@ -71,6 +76,8 @@ class Player(controller_base.Controller):
         active_buttons[football_action_set.action_sprint] = 1
 
     for button, actions in BUTTON_TO_ACTIONS.items():
+      if button >= self._joystick.get_numbuttons():
+        continue  # controller has fewer buttons
       if self._joystick.get_button(button):
         for a in actions:
           active_buttons[a] = 1

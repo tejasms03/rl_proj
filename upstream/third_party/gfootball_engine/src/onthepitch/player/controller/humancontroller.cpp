@@ -180,6 +180,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.useDesiredLookAt = false;
 
         float inputPower = kickPower(0.7f);
+        command.touchInfo.kickVariant = hid->GetKickVariant();  // through ball
         command.touchInfo.inputDirection = inputDirection;
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = GetConfiguration()->GetReal("gameplay_shortpass_autodirection", _default_ShortPass_AutoDirection);
@@ -189,6 +190,11 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
           command.touchInfo.autoPowerBias = scenario.pass_power_assist;
         }
         AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
+
+        if (command.touchInfo.kickVariant == e_KickVariant_ThroughBall) {
+          AI_ApplyThroughBall(CastPlayer(), command.touchInfo.targetPlayer,
+                              command.touchInfo.desiredDirection, command.touchInfo.desiredPower);
+        }
 
         commandQueue.push_back(command);
 
@@ -247,6 +253,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.autoDirectionBias = 1.0f;
         command.touchInfo.desiredDirection = AI_GetShotDirection(CastPlayer(), command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
         command.touchInfo.desiredPower = kickPower(0.6f);
+        command.touchInfo.kickVariant = hid->GetKickVariant();  // curl / chip
 
         commandQueue.push_back(command);
       }

@@ -62,6 +62,10 @@ Player *AI_GetClosestPlayer(Team *team, const Vector3 &position,
 void AI_GetClosestPlayers(Team *team, const Vector3 &position, bool onlyAIControlled, std::vector<Player*> &result, unsigned int playerCount = 3, bool onlySelectable = false);
 Player *AI_GetBestSwitchTargetPlayer(Match *match, Team *team, const Vector3 &desiredMovement);
 void AI_GetAutoPass(e_FunctionType passType, const Vector3 &vector, Vector3 &resultingDirection, float &resultingPower);
+// rl_project P3: turn a ground pass to `target` into a through ball, aimed
+// into space ahead of the receiver's run. With manual kick power the agent
+// still sets the distance; otherwise power is solved for the lead point.
+void AI_ApplyThroughBall(Player *passer, Player *target, Vector3 &direction, float &power);
 void AI_GetPass(Player *player, e_FunctionType passType, const Vector3 &inputDirection, float inputPower, float autoDirectionBias, float autoPowerBias, Vector3 &resultingDirection, float &resultingPower, Player *&targetPlayer, Player *forcedTargetPlayer = 0);
 Vector3 AI_GetShotDirection(Player *player, const Vector3 &inputDirection, float autoDirectionBias = 1.0f); // this is to get a 'rough' idea of where to shoot, so we can pick the proper animation. exact direction will be tweaked later on.
 

@@ -345,7 +345,10 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
     .value("release_switch", Action::game_release_switch)
     .value("release_sprint", Action::game_release_sprint)
     .value("release_dribble", Action::game_release_dribble)
-    .value("builtin_ai", Action::game_builtin_ai);
+    .value("builtin_ai", Action::game_builtin_ai)
+    .value("curl_shot", Action::game_curl_shot)
+    .value("chip", Action::game_chip)
+    .value("through_ball", Action::game_through_ball);
 
   enum_<e_Team>("e_Team")
       .value("e_Left", e_Team::e_Left)

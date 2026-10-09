@@ -212,16 +212,32 @@ void GameEnv::action(int action, bool left_team, int player) {
       break;
 
     case game_long_pass:
+      controller->SetKickVariant(e_KickVariant_None);
       controller->SetButton(e_ButtonFunction_LongPass, true);
       break;
     case game_high_pass:
+      controller->SetKickVariant(e_KickVariant_None);
       controller->SetButton(e_ButtonFunction_HighPass, true);
       break;
     case game_short_pass:
+      controller->SetKickVariant(e_KickVariant_None);
       controller->SetButton(e_ButtonFunction_ShortPass, true);
       break;
     case game_shot:
+      controller->SetKickVariant(e_KickVariant_None);
       controller->SetButton(e_ButtonFunction_Shot, true);
+      break;
+    case game_curl_shot:
+      controller->SetKickVariant(e_KickVariant_CurlShot);
+      controller->SetButton(e_ButtonFunction_Shot, true);
+      break;
+    case game_chip:
+      controller->SetKickVariant(e_KickVariant_Chip);
+      controller->SetButton(e_ButtonFunction_Shot, true);
+      break;
+    case game_through_ball:
+      controller->SetKickVariant(e_KickVariant_ThroughBall);
+      controller->SetButton(e_ButtonFunction_ShortPass, true);
       break;
     case game_keeper_rush:
       controller->SetButton(e_ButtonFunction_KeeperRush, true);

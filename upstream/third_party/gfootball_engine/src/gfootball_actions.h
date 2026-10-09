@@ -47,7 +47,11 @@ enum Action {
   game_release_switch = 29,
   game_release_sprint = 30,
   game_release_dribble = 31,
-  game_builtin_ai = 32
+  game_builtin_ai = 32,
+  // rl_project P3 kicks.
+  game_curl_shot = 33,
+  game_chip = 34,
+  game_through_ball = 35
 };
 
 #endif

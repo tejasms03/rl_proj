@@ -29,11 +29,18 @@ HALF = (1280, 720)  # each half of the stacked video
 _DEFAULT = {a._name: i for i, a in enumerate(
     football_action_set.get_action_set({"action_set": "default"}))}
 _V2 = {a._name: i for i, a in enumerate(football_action_set.get_action_set({"action_set": "v2"}))}
+_V3 = {a._name: i for i, a in enumerate(football_action_set.get_action_set({"action_set": "v3"}))}
+_P3 = {"realistic_ball_physics": True, "action_set": "v3"}
 
 
 def _pass_plan(kick):
     # 30 ticks of running right ~ 8 frames, then press the kick.
     return lambda f: _DEFAULT["right"] if f < 8 else (_DEFAULT[kick] if f < 10 else 0)
+
+
+def _v3_plan(kick):
+    # ~1.3 s run toward goal, then the kick.
+    return lambda f: _V3["right"] if f < 8 else (_V3[kick] if f < 10 else _V3["release_direction"])
 
 
 def _curl_launch(sign):
@@ -63,6 +70,18 @@ CLIPS = {
         left={"realistic_ball_physics": True}, right={"realistic_ball_physics": True},
         launch=(_curl_launch(1), _curl_launch(-1)),
         caption=("sidespin one way", "sidespin the other way")),
+    "curl_shot": dict(
+        scenario="drill_shot", frames=45, plans=(_v3_plan("shot"), _v3_plan("curl_shot")),
+        left=_P3, right=_P3,
+        caption=("normal shot", "curl shot: starts wide, bends back in")),
+    "chip": dict(
+        scenario="drill_shot", frames=110, plans=(_v3_plan("shot"), _v3_plan("chip")),
+        left=_P3, right=_P3,
+        caption=("normal shot", "chip: 45 deg lob with backspin")),
+    "through_ball": dict(
+        scenario="drill_through", frames=75, plans=(_v3_plan("short_pass"), _v3_plan("through_ball")),
+        left=_P3, right=_P3,
+        caption=("ground pass: to his feet", "through ball: into space ahead of him")),
     "wet_pitch": dict(
         scenario="drill_pass_short", frames=90, plan=_pass_plan("short_pass"),
         left={"realistic_ball_physics": True},
@@ -82,7 +101,8 @@ def _render(clip_name: str, side: int) -> list[np.ndarray]:
         if "launch" in clip:
             clip["launch"][side](env.unwrapped._env._env)
         for f in range(clip["frames"]):
-            obs, _, done, _ = env.step(clip["plan"](f))
+            plan = clip["plans"][side] if "plans" in clip else clip["plan"]
+            obs, _, done, _ = env.step(plan(f))
             frame = env.render(mode="rgb_array")
             if frame.shape[1::-1] != HALF:
                 frame = cv2.resize(frame, HALF, interpolation=cv2.INTER_AREA)

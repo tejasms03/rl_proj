@@ -471,6 +471,10 @@ void Humanoid::Process() {
 
         }  // else: just stick to original
 
+        if (currentAnim.originatingCommand.touchInfo.kickVariant == e_KickVariant_ThroughBall) {
+          AI_ApplyThroughBall(CastPlayer(), targetPlayer, ballDirection, ballPower);  // rl_project P3
+        }
+
         if (targetPlayer) {
           team->SelectPlayer(targetPlayer);
 
@@ -548,10 +552,44 @@ void Humanoid::Process() {
         radian zRot = 0;
         Vector3 touchVec = GetShotVector(match, CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot, zRot, currentAnim.originatingCommand.touchInfo.autoDirectionBias);
 
+        float spinBias = 0.7f;
+        const int kickVariant = currentAnim.originatingCommand.touchInfo.kickVariant;
+        if (kickVariant == e_KickVariant_CurlShot || kickVariant == e_KickVariant_Chip) {
+          DO_VALIDATION;  // rl_project P3
+          Vector3 ballPos = match->GetBall()->Predict(0).Get2D();
+          Vector3 goal(-team->GetDynamicSide() * pitchHalfW, 0, 0);
+          Vector3 flat = touchVec.Get2D().GetNormalized(goal - ballPos);
+          float distance = (goal - ballPos).GetLength();
+          if (kickVariant == e_KickVariant_CurlShot) {
+            // Start wide of the aim and bend back toward the goal's centre
+            // line: ~0.12 m of bend per metre (~3 m from 25 m) at 55 rad/s.
+            float side = flat.GetCrossProduct(goal - ballPos).coords[2] >= 0 ? 1.0f : -1.0f;
+            radian outward = std::atan(0.12f) * -side;
+            Vector3 dir = flat.GetRotated2D(outward);
+            float speed = touchVec.GetLength() * 0.88f;
+            radian elevation = 6.0f * pi / 180.0f;
+            touchVec = dir * (speed * std::cos(elevation)) + Vector3(0, 0, speed * std::sin(elevation));
+            xRot *= 0.3f;
+            yRot *= 0.3f;
+            zRot = side * 55.0f;  // omega_z > 0 bends the ball to the left
+          } else {
+            // Lob: 45 deg with backspin, landing just inside the goal.
+            constexpr float chipBackspin = 25.0f;
+            radian elevation = 45.0f * pi / 180.0f;
+            float speed = RealisticSpeedForCarry(std::max(distance - 1.0f, 3.0f), elevation,
+                                                 chipBackspin, 5.0f, 30.0f);
+            touchVec = flat * (speed * std::cos(elevation)) + Vector3(0, 0, speed * std::sin(elevation));
+            xRot = -flat.coords[1] * chipBackspin;
+            yRot = -flat.coords[0] * chipBackspin;
+            zRot = 0.0f;
+          }
+          spinBias = 1.0f;
+        }
+
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
-        match->GetBall()->SetRotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias));
+        match->GetBall()->SetRotation(xRot, yRot, zRot, spinBias * (1.0f - bumpyRideBias));
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));
       }
 

@@ -133,28 +133,14 @@ Already worked out while installing:
 - Observations report spin scaled like positions (x ÷ 54.4, y ÷ −83.6); upstream kick spins are ~40–50 rad/s topspin on passes, 10–22 rad/s backspin on lofted balls, small sidespin
 - With the current (strictly realistic) pace the built-in AI creates fewer chances: 24 AI-vs-AI matches give 1.4 goals and 4.6 shots per match vs 2.6 and 10.3 upstream. The AI's pass-risk heuristic assumes upstream ball speeds. Addressed by the `game` pace below
 
-### P3: new kick actions (changes the action list)
+### P3: new kick actions — **done** (action set `v3`, 22 actions)
 
-**New actions:**
-
-| Action | Behaviour | Built on |
-|---|---|---|
-| `curl_shot` | Shot with extra side spin; bends inward, toward the far post. Slightly less power | Shot path (`GetShotVector`) + spin (`zRot`) |
-| `through_ball` | Ground pass aimed into space ahead of the receiver's run, not at their feet; hit harder | Pass targeting in `AIfunctions.cpp:1079/1096`: more lead time, aimed along the run and toward goal |
-| `chip` | Lofted shot or pass with backspin, high and slow; for lobbing the keeper | High-pass path + backspin |
-
-**How:**
-- C++: add `game_curl_shot`, `game_through_ball`, `game_chip` and their release actions to the end of `enum Action` (`gfootball_actions.h`), so existing numbers don't change
-- Bind them in `ai.cpp`, and map each to a function type plus a modifier flag on the player's command
-- Python: add `CoreAction`s in `football_action_set.py` and a new action set `v3` = default 19 + 3 = **22 actions**. The default action set stays the same, so old code still works
-- Gamepad: map the new actions to unused buttons in `gamepad.py`
-- Built-in AI: optional, and off by default for v1.0; AI opponents use only the old actions unless a switch is on
-
-**Done when:**
-- `curl_shot`: higher scoring rate than `shot` from the edge of the box toward the far post in a drill; measured bend in the right direction
-- `through_ball`: the receiver gets the ball further ahead of the defender than with `short_pass`, in a timed-run drill
-- `chip`: scores more often than `shot` against an advanced keeper (rushing out)
-- Gamepad: each new action can be triggered by hand
+Built as variants of existing kicks (a kick variant travels with the command, like kick power), so they reuse the engine's kick animations and AI logic:
+- `curl_shot`: starts ~7° wide of the aim with 55 rad/s sidespin and bends back toward the goal's centre line; 12% slower than a normal shot
+- `chip`: 45° lob with backspin, launch speed solved to land just inside the goal; clears an advanced keeper (> 2.6 m high 7 m out) and drops under the bar
+- `through_ball`: ground pass aimed 5 m ahead of where the receiver will be in 1.2 s, toward goal; with manual kick power the agent still sets the distance
+- `v3` = the 19 default actions + these 3; `default`, `v2` unchanged; the `full` set (play_game) has them appended; gamepad buttons 6/7/8
+- Tests: `tests/test_p3_kicks.py` (curl bends > 1.5 m and well beyond a normal shot; chip scores on every seed; through ball runs past a standing receiver). Calibrated for `realistic_ball_physics`; the chip ignores kick power (it is solved to the goal)
 
 ### P4: situational accuracy (no new actions)
 

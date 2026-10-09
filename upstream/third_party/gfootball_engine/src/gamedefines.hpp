@@ -142,6 +142,13 @@ enum e_PlayerCommandModifier {
 
 class IController;
 
+enum e_KickVariant {
+  e_KickVariant_None = 0,
+  e_KickVariant_CurlShot = 1,
+  e_KickVariant_Chip = 2,
+  e_KickVariant_ThroughBall = 3,
+};
+
 struct TouchInfo {
   Vector3         inputDirection;
   float           inputPower = 0;
@@ -153,7 +160,10 @@ struct TouchInfo {
   float           desiredPower = 0;
   Player          *targetPlayer = 0; // null == do not use
   Player          *forcedTargetPlayer = 0; // null == do not use
+  // rl_project P3: 0 normal, 1 curl shot, 2 chip, 3 through ball.
+  int             kickVariant = 0;
   void ProcessState(EnvState* state) { DO_VALIDATION;
+    state->process(kickVariant);
     state->process(inputDirection);
     state->process(inputPower);
     state->process(autoDirectionBias);
