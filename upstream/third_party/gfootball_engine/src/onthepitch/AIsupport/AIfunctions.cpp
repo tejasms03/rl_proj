@@ -1001,6 +1001,46 @@ Player *AI_GetBestSwitchTargetPlayer(Match *match, Team *team,
 void AI_GetAutoPass(e_FunctionType passType, const Vector3 &vector,
                     Vector3 &resultingDirection, float &resultingPower) {
   DO_VALIDATION;
+  if (GetScenarioConfig().realistic_ball_physics &&
+      passType == e_FunctionType_ShortPass) {
+    DO_VALIDATION;
+    // rl_project P2: ground pass solved on the actual pitch, arriving firm
+    // enough to beat a closing defender: ~5 m/s short, up to 9 m/s long.
+    float distance = vector.Get2D().GetLength();
+    float arrival = clamp(4.0f + 0.12f * distance, 5.0f, 9.0f);
+    PitchPhysics pitch = GetPitchPhysics(GetScenarioConfig().pitch_condition, true);
+    float speed = clamp(RealisticGroundPassSpeed(distance, arrival, pitch), 6.0f, 30.0f);
+    resultingDirection = (vector.Get2D().GetNormalized(Vector3(1, 0, 0)) + Vector3(0, 0, 0.05f)).GetNormalized(0);
+    resultingPower = speed / 36.0f - 0.3f;
+    return;
+  }
+  if (GetScenarioConfig().realistic_ball_physics &&
+      (passType == e_FunctionType_HighPass ||
+       passType == e_FunctionType_LongPass)) {
+    DO_VALIDATION;
+    // rl_project P2: launch angle and backspin by pass type, speed solved so
+    // the first landing hits the target under the realistic flight model.
+    // Touch velocity is 36 * (power + 0.3) m/s (Humanoid pass touch).
+    float distance = vector.Get2D().GetLength();
+    radian elevation;
+    float backspin, carry;
+    if (passType == e_FunctionType_HighPass) {
+      // ~40 deg for short lofted balls down to ~28 deg for long switches.
+      elevation = clamp(40.0f - 0.25f * (distance - 20.0f), 28.0f, 40.0f) * pi / 180.0f;
+      backspin = realisticHighPassBackspin;
+      carry = distance;
+    } else {
+      // Driven long ball: low trajectory, lands short and runs on.
+      elevation = 15.0f * pi / 180.0f;
+      backspin = realisticLongPassBackspin;
+      carry = distance * 0.75f;
+    }
+    float speed = RealisticSpeedForCarry(carry, elevation, backspin, 8.0f, 40.0f);
+    resultingDirection = vector.Get2D().GetNormalized(Vector3(1, 0, 0)) * std::cos(elevation) +
+                         Vector3(0, 0, std::sin(elevation));
+    resultingPower = speed / 36.0f - 0.3f;
+    return;
+  }
   float heightOffset = 0.11f;
   float powerFactor = 1.8f;//1.6f
   float distanceExp = 1.4f;

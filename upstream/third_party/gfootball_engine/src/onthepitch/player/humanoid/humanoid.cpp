@@ -493,6 +493,9 @@ void Humanoid::Process() {
           if (currentAnim.functionType == e_FunctionType_HighPass) amount *= 0.2f;
           touchVec.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(touchVec.GetLength(), 0.0f, 70.0f)));
           zcurve = amount * -340;//-600;
+          // rl_project P2: physical Magnus would turn this into ~80 rad/s of
+          // sidespin; keep the slight curl at a realistic ~40 rad/s at most.
+          if (GetScenarioConfig().realistic_ball_physics) zcurve = amount * -160;
 
           //SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
         }
@@ -504,6 +507,17 @@ void Humanoid::Process() {
         if (currentAnim.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
+        if (GetScenarioConfig().realistic_ball_physics &&
+            (currentAnim.functionType == e_FunctionType_HighPass ||
+             currentAnim.functionType == e_FunctionType_LongPass)) {
+          DO_VALIDATION;  // rl_project P2: backspin, as assumed by AI_GetAutoPass
+          float backspin = currentAnim.functionType == e_FunctionType_HighPass
+                               ? realisticHighPassBackspin
+                               : realisticLongPassBackspin;
+          Vector3 flat = touchVec.Get2D().GetNormalized(Vector3(1, 0, 0));
+          xRot = -flat.coords[1] * backspin;
+          yRot = -flat.coords[0] * backspin;
+        }
         match->GetBall()->SetRotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias));
 
         team->SetLastTouchPlayer(CastPlayer(), GetTouchTypeForBodyPart(currentAnim.anim->GetVariable("touch_bodypart")));

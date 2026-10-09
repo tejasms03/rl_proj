@@ -61,6 +61,18 @@ class GameEnv_Python : public GameEnv {
     return result;
   }
 
+  // rl_project test hook: place the ball at `pos` (engine metres) with
+  // velocity `vel` (m/s) and spin (rad/s, Ball::SetRotation axes). Used by
+  // grf_tools.ballistics to measure ball physics without player kicks.
+  void launch_ball_python(float px, float py, float pz, float vx, float vy,
+                          float vz, float sx, float sy, float sz) {
+    ContextHolder c(this);
+    Ball *ball = GetGameTask()->GetMatch()->GetBall();
+    ball->SetPosition(Vector3(px, py, pz));
+    ball->SetRotation(sx, sy, sz, 1.0f);
+    ball->Touch(Vector3(vx, vy, vz));
+  }
+
   void step_python() {
     ContextHolder c(this);
     PyThreadState* _save = NULL;
@@ -148,6 +160,7 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def("get_info", &GameEnv_Python::get_info)
       .def("get_player_attributes",
            &GameEnv_Python::get_player_attributes_python)
+      .def("launch_ball", &GameEnv_Python::launch_ball_python)
       .def("get_frame", &GameEnv_Python::get_frame_python)
       .def("perform_action", &GameEnv_Python::action)
       .def("sticky_action_state", &GameEnv_Python::sticky_action_state)
@@ -200,6 +213,9 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
                      &ScenarioConfig::right_team_difficulty)
       .def_readwrite("realistic_player_physics",
                      &ScenarioConfig::realistic_player_physics)
+      .def_readwrite("realistic_ball_physics",
+                     &ScenarioConfig::realistic_ball_physics)
+      .def_readwrite("pitch_condition", &ScenarioConfig::pitch_condition)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
                      &ScenarioConfig::end_episode_on_score)

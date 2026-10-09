@@ -37,7 +37,9 @@ PREFERRED_FOOT = {None: 0, 'right': 1, 'left': 2}
 # rl_project patch switches (ScenarioConfig fields, all off by default).
 # Scenarios may set them via builder.config(); an env option of the same
 # name (other_config_options) takes precedence.
-PATCH_SWITCHES = ('realistic_player_physics',)
+PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
+                  'pitch_condition')
+PITCH_CONDITIONS = {'normal': 0, 'dry': 1, 'wet': 2, 'long_grass': 3}
 
 
 def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
@@ -101,7 +103,13 @@ class Scenario(object):
   def _ApplyPatchSwitches(self):
     for name in PATCH_SWITCHES:
       if name in self._config:
-        setattr(self._scenario_cfg, name, self._config[name])
+        value = self._config[name]
+        if name == 'pitch_condition':
+          if value not in PITCH_CONDITIONS:
+            raise ValueError('pitch_condition must be one of %s, got %r' %
+                             (sorted(PITCH_CONDITIONS), value))
+          value = PITCH_CONDITIONS[value]
+        setattr(self._scenario_cfg, name, value)
 
   def _ApplyPlayerOverrides(self):
     """rl_project P1: apply the `player_overrides` env option to any scenario.

@@ -115,29 +115,23 @@ Already worked out while installing:
 - In a drill with all-0.9 vs all-0.3 attackers, the 0.9 team scores clearly more (CI excludes 0)
 - A fast striker (velocity 0.9) beats a slow defender (0.3) to a loose ball in a footrace drill
 
-### P2: ball physics upgrade (no new actions)
+### P2: ball physics (switches `realistic_ball_physics`, `pitch_condition`) — **done**
 
-What the engine does now (`onthepitch/ball.cpp`): gravity, quadratic drag with a single constant `drag = 0.015`, a Magnus "swerve" term with a hand-tuned curve, grass friction and spin effects, and constant bounce.
+**Change from the original plan:** one switch for flight + kicks instead of five independent ones. Physical drag/lift only make sense with physical kick spins and with pass power solved for the new flight, otherwise passes land in the wrong place. Knuckleballs (P2d) are deferred: the built-in AI predicts the exact ball path, so random wobble would be fully anticipated.
 
-**Changes, each with its own switch:**
+**As built (`onthepitch/ball.cpp`, shared by the ball simulation and the pass solver):**
+- Drag crisis: Cd 0.47 below ~10 m/s to 0.22 above ~14 m/s (centre 11.5 m/s); `airK = ρA/2m = 0.0541 /m`
+- Magnus lift `C_L = 0.35·tanh(S/0.3)`, `S = r·ω⊥/v`; spin decays in flight with τ = 5 s
+- Realistic grass: rolling resistance `0.012·v² + 0.75 m/s²` (FIFA standard: 4–8 m from ~3 m/s; upstream ~2.3 m)
+- Kicks: lofted passes get backspin (high 45 rad/s, long 30 rad/s); pass-curl sidespin capped at ~40 rad/s; shots unchanged
+- Pass solvers: lofted/long passes solve launch speed by simulating the flight (`RealisticSpeedForCarry`); ground passes solve it in closed form for an arrival speed (`RealisticGroundPassSpeed`), on the current pitch
+- `pitch_condition`: `normal` (upstream values unless realistic) / `dry` / `wet` / `long_grass`
+- Test hook `launch_ball` + `grf_tools.ballistics`; `grf_tools.matchstats`; `grf_tools.record` (videos)
+- Bug fixed on the way: `Quaternion::GetRotationMultipliedBy` returns NaN when |w| drifts above 1, which crashed full matches; spin decay uses a safe small-angle scaling instead
 
-| Sub-patch | Change | Physical basis | Switch |
-|---|---|---|---|
-| P2a drag crisis | Drag coefficient depends on speed: Cd ≈ 0.45 below about 10–12 m/s, ≈ 0.20–0.25 above, with a smooth transition. This gives dipping and knuckling power shots | Wind-tunnel data for match balls (Asai, Goff & Carré). Calibrate the threshold to a modern ball. Note: the current constant 0.015 roughly equals the post-crisis value | `ball_drag_model` |
-| P2b spin decay | Spin decays exponentially in flight (time constant of a few seconds), so curl bends most early | Aerodynamic torque on a spinning sphere | `ball_spin_decay` |
-| P2c Magnus rework | Replace the hand-tuned `swerveAmount` curve with lift that depends on the spin-to-speed ratio | Lift coefficient vs spin parameter, from published football data | `ball_magnus_model` |
-| P2d knuckle | Small random sideways force for hard, low-spin shots (deterministic under a fixed seed) | Asymmetric wake / seam effects at the drag-crisis transition | `ball_knuckle` |
-| P2e pitch conditions | Expose `grassHeight`, `bounce`, `linearBounce` and friction as scenario settings with presets: `dry`, `normal`, `wet`, `long_grass` | Wet grass skids and bounces lower | `pitch_preset` |
-
-**Note:** the engine predicts the ball's future path (`Ball::Predict`), and the AI and animations use it. All new physics must go inside that same loop so predictions stay consistent; otherwise players will misjudge balls.
-
-**Done when:**
-- Measured with `tools/measure.py`:
-  - A 30 m/s shot with no spin keeps its speed over 20 m in line with post-crisis drag
-  - A 15 m/s chip loses speed faster (pre-crisis)
-  - A curl shot from 20 m bends about 1–3 m sideways (TV analyses of real free kicks: about 2–4 m over 25 m)
-- A wet pitch gives measurably lower bounce and faster skid than dry
-- AI-vs-AI goal rates stay within the realistic band (T5)
+**Findings:**
+- Observations report spin scaled like positions (x ÷ 54.4, y ÷ −83.6); upstream kick spins are ~40–50 rad/s topspin on passes, 10–22 rad/s backspin on lofted balls, small sidespin
+- With the current (strictly realistic) pace the built-in AI creates fewer chances: 24 AI-vs-AI matches give 1.4 goals and 4.6 shots per match vs 2.6 and 10.3 upstream. The AI's pass-risk heuristic assumes upstream ball speeds. Addressed by the `game` pace below
 
 ### P3: new kick actions (changes the action list)
 
@@ -202,16 +196,42 @@ What the engine does now (`onthepitch/ball.cpp`): gravity, quadratic drag with a
 
 ---
 
-## 3. Order of work
+## 3. Phase 0: freeze the environment (locked spec, 2026-10-09)
 
-1. **P0**: copy the source into `upstream/`, apply the build fixes, write `build.sh`. Make the first commit the unmodified source so the build-fix diff is visible
-2. **Test harness first**: T0, T1 (record upstream reference files *before* any patch), T2, T7, and `tools/measure.py`
-3. **P1** attributes. Everything else uses it
-4. **P2** ball physics, one sub-patch at a time, each measured with T3
-5. **P4** situational accuracy (needs P1)
-6. **P3** new actions, last, because it changes the action list
-7. **T5 + T6 + T8**, then freeze **v1.0** with a git tag
-8. **RL**: separate plan
+Decided with the user: the game should feel like modern FIFA / EA FC, the agents control all 11 players with full information, and they learn kick power themselves.
+
+**Pace** (`ball_pace`: `game` default when `realistic_ball_physics` is on; `realistic` = current behaviour):
+
+| Kick | Launch | Trajectory | Lands |
+|---|---|---|---|
+| Ground pass | 14–22 m/s (upstream tempo) | low | arrives firm, 8–12 m/s |
+| Driven long ball | 26–32 m/s | 12–18°, backspin | ~90% of the way, runs on |
+| Lofted pass | 24–30 m/s | 25–30°, backspin | on the target |
+| Shot | unchanged (~28 m/s) | | |
+
+**Kick power:** continuous 0–1 mapped to intended distance: ground pass / through ball 3–45 m, driven long ball 15–65 m, lofted pass 10–60 m, chip 8–35 m; shot 15–36 m/s scaled by shot-power stat. Launch speed comes from the solver at the current pace and pitch.
+
+**Assist:** 0 (manual: the ball goes where the power sends it) to 1 (snaps to a teammate, upstream behaviour), set per env.
+
+**Interface:** action + power; wrappers for true continuous and 21-step (`MultiDiscrete`). Gamepad: hold-to-charge feeds the same power. Existing GRF action sets unchanged.
+
+**Also in phase 0:** mid-game profile swaps (stats change during a match, for the manager agent), player archetypes, a Linux build for the training machines.
+
+**Acceptance:** T1 still exact with every switch off; `game` pace AI-vs-AI ≈ 2.3–3.0 goals/match, shots and pass completion not below upstream; passes land within ±10% of the intended distance at each power; the user signs off on re-recorded clips.
+
+**Cut first if late:** P3 extra kicks (curl, through ball, chip), P4 situational accuracy.
+
+## 3b. Project timeline
+
+| Phase | Dates | What | Who |
+|---|---|---|---|
+| 0. Freeze environment | Oct 12 – Oct 25 | the spec above, tag v1.0 | Claude; the user designs the agent interface |
+| 1. RL foundations | Oct 19 – Nov 1 | own PPO with action + power heads, parallel envs, logging | user |
+| 2. 11-player agents | Nov 2 – Nov 15 | MAPPO with shared weights, per-player stats/role inputs, randomized archetypes/tactics, curriculum | user |
+| **Checkpoint** | **Nov 15** | beats the easy built-in AI in 11v11, else fall back to 5-vs-5 | |
+| 3. Style / player conditioning | Nov 16 – Nov 29 | style-conditioned vs player-centric training | user |
+| 4. Manager | Nov 30 – Dec 13 | manager picks tactics and archetypes every ~5 game-minutes | user |
+| 5. Experiments, write-up | Dec 14 – Dec 24 | style × player grid, chemistry via passing networks, demo | user |
 
 ## 4. Findings so far
 
@@ -230,6 +250,6 @@ What the engine does now (`onthepitch/ball.cpp`): gravity, quadratic drag with a
 
 ## 5. Open questions to settle during the work
 
-- **Real numbers for P2:** which ball to model and where to get the drag/lift curves. Starting point: published wind-tunnel studies of modern match balls.
 - **Should the AI opponent use P3 actions?** Off for v1.0 keeps the opponent the same as standard GRF and makes comparisons with published results possible.
-- **Should observations include player stats?** Changes the observation size; decide before the freeze.
+- **Observations:** raw observations include every player's stats (P1). The per-player observation for the agents is the user's design (full information decided).
+- **Chemistry** (later, phases 3–4): per-pair score that grows with minutes and passes together; low chemistry adds noise to teammate positions / pass accuracy. Gives the manager a cost for swaps.

@@ -29,6 +29,33 @@ using namespace blunted;
 
 class Match;
 
+// rl_project P2 (realistic_ball_physics) shared flight model.
+// Aerodynamic acceleration (drag + Magnus lift, no gravity) in m/s^2 for a
+// ball with `velocity` (m/s) and angular velocity `omega` (rad/s, about +x,
+// +y, +z).
+Vector3 RealisticAirAcceleration(const Vector3 &velocity, const Vector3 &omega);
+// Horizontal distance at first landing for a launch from the grass with
+// `speed` (m/s) at `elevation` (radians) and `backspin` (rad/s, > 0 lifts).
+float RealisticCarryDistance(float speed, float elevation, float backspin);
+// Launch speed whose first landing is `distance` away (bisection on
+// RealisticCarryDistance), clamped to [minSpeed, maxSpeed].
+float RealisticSpeedForCarry(float distance, float elevation, float backspin,
+                             float minSpeed = 5.0f, float maxSpeed = 40.0f);
+
+// rl_project P2e: ground contact for a pitch_condition (0 normal, 1 dry,
+// 2 wet, 3 long grass); `realistic` selects FIFA-standard grass friction.
+struct PitchPhysics {
+  float bounce, linearBounce, friction, linearFriction, grassHeight;
+};
+PitchPhysics GetPitchPhysics(int condition, bool realistic);
+// Launch speed for a ground pass that is still rolling at `arrivalSpeed`
+// after `distance` metres on `pitch`.
+float RealisticGroundPassSpeed(float distance, float arrivalSpeed, const PitchPhysics &pitch);
+
+// Spin for lofted passes under realistic_ball_physics (rad/s backspin).
+constexpr float realisticHighPassBackspin = 45.0f;
+constexpr float realisticLongPassBackspin = 30.0f;
+
 struct BallSpatialInfo {
   BallSpatialInfo(const Vector3 &momentum, const Quaternion &rotation_ms) { DO_VALIDATION;
     this->momentum = momentum;

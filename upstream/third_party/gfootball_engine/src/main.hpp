@@ -153,6 +153,8 @@ struct ScenarioConfig {
     state->process(second_half);
     state->process(control_all_players);
     state->process(realistic_player_physics);
+    state->process(realistic_ball_physics);
+    state->process(pitch_condition);
   }
 
   void ProcessState(EnvState* state) {
@@ -202,6 +204,11 @@ struct ScenarioConfig {
   // rl_project patch switches. All default to off = upstream behaviour.
   // P1b: realistic top speed / acceleration ranges from player stats.
   bool realistic_player_physics = false;
+  // P2: physical ball flight (drag crisis, Magnus lift, spin decay),
+  // realistic kick spin/launch angles and pass power solved for that flight.
+  bool realistic_ball_physics = false;
+  // P2e: ground contact. 0 normal (upstream), 1 dry, 2 wet, 3 long grass.
+  int pitch_condition = 0;
   int second_half = 999999999;
 
  private:

@@ -6,7 +6,7 @@ from . import *
 
 
 def build_scenario(builder):
-  builder.config().game_duration = 200
+  builder.config().game_duration = 600
   builder.config().deterministic = False
   builder.config().offsides = False
   builder.config().end_episode_on_score = True

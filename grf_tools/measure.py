@@ -133,12 +133,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seeds", type=int, default=20)
     parser.add_argument("--csv", type=Path)
+    parser.add_argument("--config", action="append", default=[],
+                        help="patch switch to turn on, e.g. realistic_ball_physics")
     args = parser.parse_args()
+    config = {name: True for name in args.config}
     fields = ["launch_speed", "launch_angle_deg", "peak_height", "carry_m", "travel_m",
               "bend_at_20m", "speed_after_1s"]
     print(f"{'kick':12s}" + "".join(f"{f:>18s}" for f in fields))
     for kick in KICKS:
-        trajs = [kick_trajectory(kick, s) for s in range(args.seeds)]
+        trajs = [kick_trajectory(kick, s, config=config) for s in range(args.seeds)]
         rows = [summarize(t) for t in trajs]
         cells = []
         for f in fields:

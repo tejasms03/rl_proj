@@ -34,6 +34,117 @@ constexpr float linearFriction = 1.6f;  // bigger = more, arbitrary scale;
 constexpr float gravity = -9.81f;
 constexpr float grassHeight = 0.025f;
 
+// rl_project P2e (pitch_condition): ground contact per pitch. `normal` is the
+// upstream pitch exactly; the others scale it toward real surface behaviour.
+// With realistic_ball_physics the grass itself is also realistic: upstream
+// rolling resistance is ~3x a FIFA-standard pitch (a ball rolling at 3 m/s
+// should travel 4-8 m; upstream ~2.3 m). Realistic: 0.012 v^2 + 0.75 m/s^2.
+constexpr float realisticFriction = 0.012f;
+constexpr float realisticLinearFriction = 0.75f;
+
+PitchPhysics GetPitchPhysics(int condition, bool realistic) {
+  float baseFriction = realistic ? realisticFriction : friction;
+  float baseLinearFriction = realistic ? realisticLinearFriction : linearFriction;
+  switch (condition) {
+    case 1:  // dry, firm: livelier bounce, slightly quicker roll
+      return {0.68f, linearBounce, baseFriction * 0.9f, baseLinearFriction * 0.85f, 0.02f};
+    case 2:  // wet: the ball skids on and bounces low
+      return {0.5f, 0.08f, baseFriction * 0.7f, baseLinearFriction * 0.6f, grassHeight};
+    case 3:  // long grass: the ball holds up, dead bounce
+      return {0.58f, linearBounce, baseFriction * 1.3f, baseLinearFriction * 1.5f, 0.045f};
+    default:  // 0: normal (upstream values unless realistic)
+      return {bounce, linearBounce, baseFriction, baseLinearFriction, grassHeight};
+  }
+}
+
+
+// rl_project P2 (realistic_ball_physics): physical flight of a size-5 ball.
+// Air: rho 1.225 kg/m^3, radius 0.11 m, mass 0.43 kg -> rho*A/(2m).
+constexpr float airK = 0.0541f;  // 1/m
+// Drag coefficient falls through the drag crisis: ~0.47 below ~10 m/s to
+// ~0.22 above ~14 m/s (wind-tunnel data for modern match balls).
+constexpr float cdSubcritical = 0.47f;
+constexpr float cdSupercritical = 0.22f;
+constexpr float cdCrisisSpeed = 11.5f;  // m/s, centre of the transition
+constexpr float cdCrisisWidth = 1.2f;   // m/s
+// Lift coefficient vs spin parameter S = r * omega_perp / v.
+constexpr float liftMax = 0.35f;
+constexpr float liftSpinScale = 0.3f;  // C_L = liftMax * tanh(S / scale)
+constexpr float spinDecayTime = 5.0f;  // s, exponential spin decay in flight
+
+// Scales a small per-ms rotation's angle by `factor` without acos: the
+// vector part is sin(angle / 2) * axis, ~linear in angle for these angles.
+// (Quaternion::GetRotationMultipliedBy can return NaN when |w| drifts > 1.)
+Quaternion ScaleSmallRotation(const Quaternion &q, float factor) {
+  Quaternion result = q;
+  real vectorLengthSquared = 0;
+  for (int i = 0; i < 3; i++) {
+    result.elements[i] *= factor;
+    vectorLengthSquared += result.elements[i] * result.elements[i];
+  }
+  real w = std::sqrt(std::max(real(0), real(1) - vectorLengthSquared));
+  result.elements[3] = q.elements[3] < 0 ? -w : w;
+  return result;
+}
+
+float RealisticDragCoefficient(float speed) {
+  return cdSupercritical + (cdSubcritical - cdSupercritical) /
+                               (1.0f + std::exp((speed - cdCrisisSpeed) / cdCrisisWidth));
+}
+
+Vector3 RealisticAirAcceleration(const Vector3 &velocity, const Vector3 &omega) {
+  float speed = velocity.GetLength();
+  if (speed < 0.01f) return Vector3(0);
+  Vector3 direction = velocity / speed;
+  Vector3 acceleration =
+      -direction * (airK * RealisticDragCoefficient(speed) * speed * speed);
+  // Magnus: along omega x v (same orientation as the upstream swerve term).
+  Vector3 liftDir = direction.GetCrossProduct(-omega);
+  float omegaPerp = liftDir.GetLength();
+  if (speed > 0.5f && omegaPerp > 0.0f) {
+    float spinParameter = 0.11f * omegaPerp / speed;
+    float liftCoefficient = liftMax * std::tanh(spinParameter / liftSpinScale);
+    acceleration += liftDir / omegaPerp * (airK * liftCoefficient * speed * speed);
+  }
+  return acceleration;
+}
+
+float RealisticCarryDistance(float speed, float elevation, float backspin) {
+  constexpr float dt = 0.01f;
+  Vector3 position(0, 0, 0.11f);
+  Vector3 velocity(speed * std::cos(elevation), 0, speed * std::sin(elevation));
+  for (int tick = 0; tick < 1000; tick++) {
+    // Backspin for motion along +x is negative rotation about +y.
+    Vector3 omega(0, -backspin * std::exp(-tick * dt / spinDecayTime), 0);
+    velocity.coords[2] += gravity * dt;
+    velocity += RealisticAirAcceleration(velocity, omega) * dt;
+    position += velocity * dt;
+    if (position.coords[2] < 0.11f && velocity.coords[2] < 0.0f) break;
+  }
+  return position.coords[0];
+}
+
+float RealisticSpeedForCarry(float distance, float elevation, float backspin,
+                             float minSpeed, float maxSpeed) {
+  float lo = minSpeed, hi = maxSpeed;
+  if (RealisticCarryDistance(lo, elevation, backspin) >= distance) return lo;
+  if (RealisticCarryDistance(hi, elevation, backspin) <= distance) return hi;
+  for (int i = 0; i < 20; i++) {
+    float mid = 0.5f * (lo + hi);
+    if (RealisticCarryDistance(mid, elevation, backspin) < distance) lo = mid; else hi = mid;
+  }
+  return 0.5f * (lo + hi);
+}
+
+float RealisticGroundPassSpeed(float distance, float arrivalSpeed, const PitchPhysics &pitch) {
+  // Rolling ball: dv/dt = -(c v^2 + L), c = grass + subcritical air drag.
+  // Distance from v0 down to va: ln((c v0^2 + L) / (c va^2 + L)) / (2c).
+  float c = pitch.friction + airK * cdSubcritical;
+  float L = pitch.linearFriction;
+  float v0Squared = ((c * arrivalSpeed * arrivalSpeed + L) * std::exp(2.0f * c * distance) - L) / c;
+  return std::sqrt(std::max(v0Squared, 0.0f));
+}
+
 Ball::Ball(Match *match) : match(match) {
   DO_VALIDATION;
   ballTouchesNet = false;
@@ -156,6 +267,8 @@ BallSpatialInfo Ball::CalculatePrediction() {
   constexpr bool swerve_enabled = true;
 
   constexpr float timeStep = 0.01f;//0.001f; // seconds
+  const bool realistic = GetScenarioConfig().realistic_ball_physics;
+  const PitchPhysics pitch = GetPitchPhysics(GetScenarioConfig().pitch_condition, realistic);
 
   bool firstTime = true;
   bool use_cache = false;
@@ -187,13 +300,20 @@ BallSpatialInfo Ball::CalculatePrediction() {
     // air resistance
 
     float momentumVelo = momentumPredict.GetLength();
+    if (realistic) {
+      DO_VALIDATION;  // drag + Magnus lift; spin stored per ms -> rad/s
+      Vector3 omega;
+      rotationPredict_ms.GetAngles(omega.coords[0], omega.coords[1], omega.coords[2]);
+      momentumPredict += RealisticAirAcceleration(momentumPredict, omega * 1000.0f) * timeStep;
+    } else {
     float momentumVeloDragged =
         momentumVelo - drag * std::pow(momentumVelo, 2.0f) * timeStep;
     if (drag_enabled) momentumPredict = momentumPredict.GetNormalized(0) * momentumVeloDragged;
+    }
 
 
     float ballBottom = nextPos.coords[2] - 0.11f;
-    float grassInfluenceBias = clamp(1.0f - (ballBottom / grassHeight), 0.0f, 1.0f); // 0 == no friction, 1 == all friction
+    float grassInfluenceBias = clamp(1.0f - (ballBottom / pitch.grassHeight), 0.0f, 1.0f); // 0 == no friction, 1 == all friction
 
     grassInfluenceBias = std::pow(
         grassInfluenceBias, 0.7f);  // at half grass height, there's already a
@@ -207,8 +327,8 @@ BallSpatialInfo Ball::CalculatePrediction() {
       if (momentumPredict.coords[2] < 0.0f) {
         DO_VALIDATION;
         frictionFactor = NormalizedClamp(-momentumPredict.coords[2] - 0.5f, 0.0f, 12.0f); // when the ball is slammed into the ground, there's gonna be more friction. only set it here so it is only done once (on impact)
-        momentumPredict.coords[2] = -momentumPredict.coords[2] * bounce;
-        momentumPredict.coords[2] = std::max(momentumPredict.coords[2] - linearBounce, 0.0f); // linear bounce
+        momentumPredict.coords[2] = -momentumPredict.coords[2] * pitch.bounce;
+        momentumPredict.coords[2] = std::max(momentumPredict.coords[2] - pitch.linearBounce, 0.0f); // linear bounce
       }
 
       nextPos.coords[2] = 0.11f;
@@ -216,9 +336,9 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     // ground friction
 
-    if (nextPos.coords[2] < 0.11f + grassHeight && groundFriction_enabled) {
+    if (nextPos.coords[2] < 0.11f + pitch.grassHeight && groundFriction_enabled) {
       DO_VALIDATION;
-      float adaptedFriction = (friction * grassInfluenceBias);
+      float adaptedFriction = (pitch.friction * grassInfluenceBias);
 
       // v(t) = v(0) * (k ^ t)
 
@@ -228,7 +348,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
       float newVelo = velo - adaptedFriction * std::pow(velo, 2.0f) * timeStep;
 
       // linear friction
-      newVelo = clamp(newVelo - (linearFriction * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
+      newVelo = clamp(newVelo - (pitch.linearFriction * grassInfluenceBias * timeStep), 0.0f, 100000.0f);
 
       xy.Normalize(Vector3(0));
       xy *= newVelo;
@@ -426,7 +546,7 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     // calculate rotation
 
-    if (nextPos.coords[2] < 0.11f + grassHeight &&
+    if (nextPos.coords[2] < 0.11f + pitch.grassHeight &&
         groundRotationEffects_enabled) {
       DO_VALIDATION;
 
@@ -503,7 +623,14 @@ BallSpatialInfo Ball::CalculatePrediction() {
 
     // magnus effect (swerve)
 
-    if (swerve_enabled) {
+    if (realistic) {
+      // Magnus lift is applied with drag above (RealisticAirAcceleration).
+      if (nextPos.coords[2] > 0.11f + pitch.grassHeight) {
+        DO_VALIDATION;  // spin decays in the air; on the grass it follows the roll
+        rotationPredict_ms = ScaleSmallRotation(
+            rotationPredict_ms, std::exp(-timeStep / spinDecayTime));
+      }
+    } else if (swerve_enabled) {
       DO_VALIDATION;
       Vector3 rotVec;
       rotationPredict_ms.GetAngles(rotVec.coords[0], rotVec.coords[1], rotVec.coords[2]);
