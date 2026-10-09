@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# engine build outputs (built in-tree by build_game_engine.sh)
+upstream/build/
+upstream/third_party/gfootball_engine/CMakeCache.txt
+upstream/third_party/gfootball_engine/CMakeFiles/
+upstream/third_party/gfootball_engine/Makefile
+upstream/third_party/gfootball_engine/cmake_install.cmake
+upstream/third_party/gfootball_engine/*.dylib
+upstream/third_party/gfootball_engine/*.so
+upstream/third_party/gfootball_engine/*.a
+upstream/third_party/gfootball_engine/**/*.a
+
+# local outputs
+runs/
+out/

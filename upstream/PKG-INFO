@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: gfootball
+Version: 2.10.2
+Summary: Google Research Football - RL environment based on open-source game Gameplay Football
+Home-page: https://github.com/google-research/football
+Author: Google LLC
+Author-email: no-reply@google.com
+License: Apache 2.0
+Keywords: gfootball reinforcement-learning python machine learning
+Platform: UNKNOWN
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+Please see [our GitHub page](https://github.com/google-research/football) for details.
+
