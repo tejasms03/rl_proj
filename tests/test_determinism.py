@@ -49,3 +49,9 @@ def test_save_restore_continues_identically(config_name):
     finally:
         env.close()
     assert first == second
+
+
+def test_mixing_tick_rates_in_one_process_is_refused():
+    run_trace("academy_empty_goal_close", seed=1, max_steps=2)
+    with pytest.raises(RuntimeError, match="physics_steps_per_frame"):
+        make_env("academy_empty_goal_close", seed=1, config={"physics_steps_per_frame": 1})

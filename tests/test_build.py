@@ -14,8 +14,9 @@ SCENARIOS = sorted(
 
 
 def test_scenarios_found():
-    assert len(SCENARIOS) == 19
-    assert "11_vs_11_stochastic" in SCENARIOS
+    upstream = [s for s in SCENARIOS if not s.startswith("drill_")]
+    assert len(upstream) == 19
+    assert {"drill_shot", "drill_pass_short", "drill_pass_long"} <= set(SCENARIOS)
 
 
 @pytest.mark.parametrize("scenario", SCENARIOS)

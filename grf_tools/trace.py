@@ -50,9 +50,24 @@ def digest_obs(obs: dict[str, Any]) -> int:
     return int.from_bytes(h.digest(), "little")
 
 
+# The engine keeps one game per process: game-level settings from the first
+# env (notably physics_steps_per_frame) silently apply to every later env in
+# the same process. Refuse to mix them instead of returning wrong data.
+_process_physics_steps: int | None = None
+
+
 def make_env(scenario: str, seed: int, config: dict[str, Any] | None = None):
+    global _process_physics_steps
     options = {"game_engine_random_seed": seed}
     options.update(config or {})
+    steps = int(options.get("physics_steps_per_frame", 10))
+    if _process_physics_steps is None:
+        _process_physics_steps = steps
+    elif steps != _process_physics_steps:
+        raise RuntimeError(
+            f"physics_steps_per_frame={steps} requested, but this process already runs the "
+            f"engine at {_process_physics_steps}; use a separate process (see grf_tools.measure)"
+        )
     return football_env.create_environment(
         scenario, representation="raw", render=False, other_config_options=options
     )

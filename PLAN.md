@@ -171,9 +171,23 @@ What the engine does now (`onthepitch/ball.cpp`): gravity, quadratic drag with a
 7. **T5 + T6 + T8**, then freeze **v1.0** with a git tag
 8. **RL**: separate plan
 
-## 4. Open questions to settle during the work
+## 4. Findings so far
+
+- **Engine units are metres and seconds.** Pitch 110 × 72 m (`gamedefines.hpp:244`). Observations scale positions by x ÷ 54.4, y ÷ −83.6, z unchanged (`defines.hpp:55`). Physics runs at 100 Hz; one env step = 10 ticks = 0.1 s by default.
+- **One game per process.** The first env created in a process fixes game-level settings such as `physics_steps_per_frame` for every later env in that process. `grf_tools.trace.make_env` refuses to mix tick rates, and `grf_tools.measure` runs in its own process. For RL, every parallel env needs its own process (`SubprocVecEnv` or equivalent).
+- **Baseline kicks (unpatched engine, 20 seeds, `python -m grf_tools.measure`).** Medians:
+
+  | Kick | Launch speed | Launch angle | Peak height | Travel |
+  |---|---|---|---|---|
+  | shot (from 22 m) | 27.9 m/s | 4° | 0.27 m | 21 m (to goal) |
+  | short pass (to 15 m) | 18.2 m/s | 6° | 0.34 m | 13 m |
+  | long pass (to 40 m) | 31.0 m/s | 11° | 3.0 m | 30 m |
+  | high pass (to 40 m) | 32.2 m/s | 20° | 4.6 m | 33 m |
+
+  Shots and short passes look plausible. **Lofted balls are too flat:** a real 40 m lofted pass peaks at about 8–10 m with a steeper launch. This belongs to P2 (with P3's chip).
+
+## 5. Open questions to settle during the work
 
 - **Real numbers for P2:** which ball to model and where to get the drag/lift curves. Starting point: published wind-tunnel studies of modern match balls.
-- **Engine units:** the ball code looks like it uses metres and seconds, but this needs checking before physical constants mean anything.
 - **Should the AI opponent use P3 actions?** Off for v1.0 keeps the opponent the same as standard GRF and makes comparisons with published results possible.
 - **Should observations include player stats?** Changes the observation size; decide before the freeze.
