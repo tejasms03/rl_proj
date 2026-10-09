@@ -825,6 +825,29 @@ std::vector<float> Match::GetPlayerAttributes(int team_id) {
   return attributes;
 }
 
+bool Match::SetPlayerStats(int team_id, int index, const std::vector<float> &stats) {
+  DO_VALIDATION;
+  std::vector<Player *> players;
+  teams[team_id]->GetAllPlayers(players);
+  int humanoid = 0;
+  for (auto player : players) {
+    DO_VALIDATION;
+    if (player->CastHumanoid() == NULL) continue;
+    if (humanoid++ != index) continue;
+    const TeamData *teamData = teams[team_id]->GetTeamData();
+    for (int i = 0; i < teamData->GetPlayerNum(); i++) {
+      DO_VALIDATION;
+      PlayerData *data = teamData->GetPlayerData(i);
+      if (data != player->GetPlayerData()) continue;
+      for (int stat = 0; stat < player_stat_max && stat < (int)stats.size(); stat++) {
+        if (stats[stat] >= 0.0f) data->SetStatValue(stat, stats[stat]);
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 void Match::GetState(SharedInfo *state) {
   DO_VALIDATION;
   state->ball_position = ball->GetAveragePosition(5).coords;

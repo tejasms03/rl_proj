@@ -11,6 +11,17 @@ conda env create -f environment.yml
 
 `build.sh` compiles the engine in `upstream/` and installs it into the `grf` env. Run it again after any engine change; it rebuilds incrementally. Use `--clean` for a full rebuild.
 
+## Linux / training machines
+
+```bash
+docker build -f docker/Dockerfile -t rl_project .
+```
+```bash
+docker run --rm rl_project
+```
+
+The second command runs the test suite inside the container. Without Docker, follow `docker/Dockerfile` by hand: system OpenGL libraries, the conda env, `conda install -n grf -c conda-forge cxx-compiler make`, then `conda run -n grf ./build.sh --clean`. Not yet tested on Linux.
+
 ## Tests
 
 ```bash

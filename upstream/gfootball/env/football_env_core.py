@@ -171,6 +171,14 @@ class FootballEnvCore(object):
         'Cant call step() once episode finished (call reset() instead)')
     assert self._env.state == GameState.game_running, (
         'reset() must be called before step()')
+    # rl_project phase 0: an action may be (action, kick_power) with power in
+    # [0, 1]. The engine keeps the last power sent, because a kick executes a
+    # step or two after the button press; plain actions leave it unchanged
+    # (never set = hold-to-charge gauge).
+    powers = [float(a[1]) if isinstance(a, (tuple, list)) else -1.0 for a in action]
+    action = [a[0] if isinstance(a, (tuple, list)) else a for a in action]
+    # Arrays of (action, power) rows arrive as floats.
+    action = [int(a) if isinstance(a, (float, np.floating)) else a for a in action]
     action = [
         football_action_set.named_action_from_action_set(self._action_set, a)
         for a in action
@@ -203,6 +211,8 @@ class FootballEnvCore(object):
               player_action = football_action_set.action_right
         action_index += 1
         assert isinstance(player_action, football_action_set.CoreAction)
+        if powers[action_index - 1] >= 0:
+          self._env.set_kick_power(left_team, i, powers[action_index - 1])
         self._env.perform_action(player_action._backend_action, left_team, i)
     while True:
       enter_time = timeit.default_timer()
@@ -353,6 +363,26 @@ class FootballEnvCore(object):
     self._observation = result
     self._step = info.step
     return info.is_in_play
+
+  def set_player_stats(self, left_team, player, stats):
+    """rl_project phase 0: change a player's base stats mid-game.
+
+    `player` is the index in the left_team / right_team observation; `stats`
+    maps stat names (scenario_builder.PLAYER_STATS) to values in [0, 1].
+    Height is fixed at kickoff. env.set_state() does not undo these changes.
+    """
+    from gfootball.env import scenario_builder
+    values = [-1.0] * len(scenario_builder.PLAYER_STATS)
+    for name, value in stats.items():
+      if name not in scenario_builder.PLAYER_STATS:
+        raise ValueError('Unknown player stat %r' % (name,))
+      if not 0.0 <= value <= 1.0:
+        raise ValueError('Stat %s=%r is outside [0, 1]' % (name, value))
+      values[scenario_builder.PLAYER_STATS[name]] = float(value)
+    if not self._env.set_player_stats(left_team, player, values):
+      raise ValueError('No player %d on the %s team' %
+                       (player, 'left' if left_team else 'right'))
+    self._player_attributes = None  # refresh *_team_attributes
 
   def _convert_players_observation(self, players, name, result):
     """Converts internal players representation to the public one.

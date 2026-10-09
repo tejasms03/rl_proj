@@ -209,15 +209,25 @@ Decided with the user: the game should feel like modern FIFA / EA FC, the agents
 | Lofted pass | 24–30 m/s | 25–30°, backspin | on the target |
 | Shot | unchanged (~28 m/s) | | |
 
-**Kick power:** continuous 0–1 mapped to intended distance: ground pass / through ball 3–45 m, driven long ball 15–65 m, lofted pass 10–60 m, chip 8–35 m; shot 15–36 m/s scaled by shot-power stat. Launch speed comes from the solver at the current pace and pitch.
+**Pace — done.** Measured at game pace (receiver 40 m away): long pass 26 m/s at 17°, arrives at 38.7 m; high pass 22 m/s at 28°, peak ~5 m; ground pass (15 m) 14 m/s. The ground-pass solver integrates the rolling deceleration numerically (the closed form assumed slow-ball drag throughout and over-hit long ground passes).
 
-**Assist:** 0 (manual: the ball goes where the power sends it) to 1 (snaps to a teammate, upstream behaviour), set per env.
+**Kick power — done** (switch `kick_power_control`):
+- Agents send `(action, power)` per player; the engine keeps the last power sent until a new one arrives (a kick executes a step or two after the press). Without a power, humans get the hold-to-charge gauge
+- Power maps linearly to intended distance: ground pass 3–35 m, driven long ball 15–50 m (lands at ~90%), lofted pass 10–60 m — trimmed from the first proposal to what the engine's kick-power cap allows. Shots: power feeds the existing shot-power path
+- Two assists instead of one: `pass_direction_assist` (default 1: aim snaps toward the teammate nearest where you point — agents only have 8 directions) and `pass_power_assist` (default 0: power sets the distance exactly). 1 = upstream fully automatic; between 0 and 1 the upstream semi-assisted blend, which fades when you aim far from any teammate
+- Calibrated with `grf_tools.measure.power_sweep` on `drill_power`: every power lands within 4% of the target (the 3 m tap within 0.6 m). Solver corrections from measurement: ground ×1.1 (loft + first bounce), driven long ball solved for 80% (run-up adds ~12%)
+- `gfootball.env.wrappers.KickPowerWrapper`: continuous `Tuple(MultiDiscrete, Box)` or `bins=21` → `MultiDiscrete`
+- With the switch off, a power value has no effect (tested)
 
-**Interface:** action + power; wrappers for true continuous and 21-step (`MultiDiscrete`). Gamepad: hold-to-charge feeds the same power. Existing GRF action sets unchanged.
+**Archetypes — done** (`gfootball/env/archetypes.py`): 19 archetypes over GK, CB, FB, DM, CM, W, ST (e.g. stopper / ball-playing / aerial CB; poacher / target man / false nine / pressing forward). Every archetype has the same stat budget (mean 0.70) and none dominates another of its position. Use them at kickoff through `player_overrides` (stats + height) or mid-game.
 
-**Also in phase 0:** mid-game profile swaps (stats change during a match, for the manager agent), player archetypes, a Linux build for the training machines.
+**Mid-game swaps — done:** `env.unwrapped.set_player_stats('left', i, {...})` and `env.unwrapped.apply_archetype('left', i, 'ST', 'target_man')` change a player's base stats during a match (index = observation order); `*_team_attributes` updates immediately. Height is fixed at kickoff; `set_state()` does not undo swaps. Tested: a sprinting player goes from 7.8 to 9.8 m/s after a swap.
 
-**Acceptance:** T1 still exact with every switch off; `game` pace AI-vs-AI ≈ 2.3–3.0 goals/match, shots and pass completion not below upstream; passes land within ±10% of the intended distance at each power; the user signs off on re-recorded clips.
+**Linux build — written, not yet tested:** `docker/Dockerfile` (Ubuntu 22.04, conda env, conda-forge compiler, `build.sh`, runs the tests). The extension no longer links libpython on any Unix. Training starts on the user's M1 Pro; test the image when the teammates' machines are used.
+
+**Acceptance:** T1 still exact with every switch off; passes land within ±10% of the intended distance at each power; the user signs off on re-recorded clips.
+
+**Known limitation (accepted 2026-10-09):** the built-in AI is hand-written rules tuned for upstream physics, so it creates fewer chances on the new physics: 24 AI-vs-AI matches at `game` pace give 1.5 goals / 4.9 shots per match vs 2.6 / 10.3 upstream (upstream grass inside realistic mode: 1.2 / 7.0, so grass is not the single cause). RL agents train on the new physics and are unaffected; the built-in AI is just a softer early benchmark. Optional backlog: retune its pass-risk timing and close control for the new physics.
 
 **Cut first if late:** P3 extra kicks (curl, through ball, chip), P4 situational accuracy.
 

@@ -130,6 +130,10 @@ class Match {
     // stats (profile or override, before difficulty/fatigue scaling), then
     // height in metres, then preferred foot (0 unspecified, 1 right, 2 left).
     std::vector<float> GetPlayerAttributes(int team_id);
+    // rl_project phase 0: set the base stats of the index-th player (same
+    // order as observations) mid-game; negative values keep the stat.
+    // Height is fixed at kickoff. Returns false if there is no such player.
+    bool SetPlayerStats(int team_id, int index, const std::vector<float> &stats);
     void GetState(SharedInfo* state);
     void ProcessState(EnvState* state);
     bool Process();

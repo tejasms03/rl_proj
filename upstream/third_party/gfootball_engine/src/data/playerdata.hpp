@@ -66,6 +66,11 @@ class PlayerData {
 
     // rl_project P1: replace profile values with the scenario's overrides.
     void ApplyOverrides(const FormationEntry& entry);
+    // rl_project phase 0: change one stat mid-game (archetype swaps).
+    void SetStatValue(int stat, float value) {
+      stats.Set(PlayerStat(stat), clamp(value, 0.01f, 1.0f));
+      UpdateValues();
+    }
 
   private:
     void UpdateValues();

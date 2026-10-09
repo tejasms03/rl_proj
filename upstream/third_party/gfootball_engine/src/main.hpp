@@ -155,6 +155,10 @@ struct ScenarioConfig {
     state->process(realistic_player_physics);
     state->process(realistic_ball_physics);
     state->process(pitch_condition);
+    state->process(ball_pace);
+    state->process(kick_power_control);
+    state->process(pass_direction_assist);
+    state->process(pass_power_assist);
   }
 
   void ProcessState(EnvState* state) {
@@ -209,6 +213,15 @@ struct ScenarioConfig {
   bool realistic_ball_physics = false;
   // P2e: ground contact. 0 normal (upstream), 1 dry, 2 wet, 3 long grass.
   int pitch_condition = 0;
+  // Phase 0: kick pacing under realistic_ball_physics. 0 = game (FIFA-like
+  // tempo, default), 1 = realistic (slower, real-football launch angles).
+  int ball_pace = 0;
+  // Phase 0: agent-controlled kick power. When on, a power set through
+  // set_kick_power (or the hold-to-charge gauge) decides the pass distance,
+  // and passes snap to teammates only as much as the assists allow.
+  bool kick_power_control = false;
+  float pass_direction_assist = 1.0f;  // 1 = aim snaps to a teammate
+  float pass_power_assist = 0.0f;      // 0 = power sets the distance exactly
   int second_half = 999999999;
 
  private:

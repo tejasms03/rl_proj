@@ -49,15 +49,15 @@ CLIPS = {
     "high_pass": dict(
         scenario="drill_pass_long", frames=150, plan=_pass_plan("high_pass"),
         left={}, right={"realistic_ball_physics": True},
-        caption=("upstream: flat 32 m/s lob", "realistic: 22 m/s, 36 deg, backspin")),
+        caption=("upstream: flat 32 m/s lob", "game pace: 22 m/s, 28 deg, backspin")),
     "long_pass": dict(
         scenario="drill_pass_long", frames=120, plan=_pass_plan("long_pass"),
         left={}, right={"realistic_ball_physics": True},
-        caption=("upstream long pass", "realistic driven long ball")),
+        caption=("upstream long pass", "game pace: driven 26 m/s, 17 deg")),
     "ground_pass": dict(
         scenario="drill_pass_short", frames=90, plan=_pass_plan("short_pass"),
         left={}, right={"realistic_ball_physics": True},
-        caption=("upstream: 18 m/s, heavy grass", "realistic: 11 m/s, FIFA-standard grass")),
+        caption=("upstream: 18 m/s, heavy grass", "game pace: 14 m/s, FIFA-standard grass")),
     "curl": dict(
         scenario="drill_shot", frames=40, plan=lambda f: 0,
         left={"realistic_ball_physics": True}, right={"realistic_ball_physics": True},

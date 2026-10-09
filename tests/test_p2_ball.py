@@ -14,6 +14,7 @@ from grf_tools.play import ai_episode
 from grf_tools.trace import make_env
 
 REAL = {"realistic_ball_physics": True}
+REALISTIC_PACE = {**REAL, "ball_pace": "realistic"}
 AIR_K = 0.0541  # rho * A / (2 m) for a size-5 ball
 
 
@@ -68,14 +69,25 @@ def test_spin_decays_exponentially_in_flight():
 def test_lofted_passes_arrive_at_the_receiver():
     # drill_pass_long: receiver ~40 m away, standing still.
     for kick in ("high_pass", "long_pass"):
-        rows = measure(kick, range(4), config=REAL)
+        rows = measure(kick, range(4), config=REALISTIC_PACE)
         for row in rows:
             assert 35.0 <= row["travel_m"] <= 42.0, (kick, row["travel_m"])
-    high = measure("high_pass", range(4), config=REAL)
+    high = measure("high_pass", range(4), config=REALISTIC_PACE)
     for row in high:
         assert 28.0 <= row["launch_angle_deg"] <= 40.0
     # Peak varies with the kicking animation (~5-10 m); the typical ball floats.
     assert np.median([row["peak_height"] for row in high]) >= 6.0
+
+
+def test_game_pace_is_flatter_and_quicker():
+    # Default pace under realistic_ball_physics: FIFA-like tempo.
+    for kick, angles in (("high_pass", (25.0, 30.0)), ("long_pass", (12.0, 18.5))):
+        for row in measure(kick, range(3), config=REAL):
+            assert 35.0 <= row["travel_m"] <= 42.0, (kick, row["travel_m"])
+            assert angles[0] <= row["launch_angle_deg"] <= angles[1], (kick, row)
+    game = measure("short_pass", range(2), config=REAL)
+    slow = measure("short_pass", range(2), config=REALISTIC_PACE)
+    assert min(r["launch_speed"] for r in game) > max(r["launch_speed"] for r in slow) + 2.0
 
 
 def test_ground_pass_arrives_at_the_receiver():

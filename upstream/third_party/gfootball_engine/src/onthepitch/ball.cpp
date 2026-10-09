@@ -137,12 +137,26 @@ float RealisticSpeedForCarry(float distance, float elevation, float backspin,
 }
 
 float RealisticGroundPassSpeed(float distance, float arrivalSpeed, const PitchPhysics &pitch) {
-  // Rolling ball: dv/dt = -(c v^2 + L), c = grass + subcritical air drag.
-  // Distance from v0 down to va: ln((c v0^2 + L) / (c va^2 + L)) / (2c).
-  float c = pitch.friction + airK * cdSubcritical;
-  float L = pitch.linearFriction;
-  float v0Squared = ((c * arrivalSpeed * arrivalSpeed + L) * std::exp(2.0f * c * distance) - L) / c;
-  return std::sqrt(std::max(v0Squared, 0.0f));
+  // Rolling ball: dv/dt = -(airK Cd(v) v^2 + friction v^2 + linearFriction).
+  // Find the launch speed that is still rolling at arrivalSpeed after
+  // `distance`, by integrating that deceleration (bisection on v0).
+  auto rollDistance = [&](float v0) {
+    constexpr float dt = 0.01f;
+    float v = v0, x = 0.0f;
+    for (int tick = 0; tick < 3000 && v > arrivalSpeed; tick++) {
+      v -= (airK * RealisticDragCoefficient(v) * v * v + pitch.friction * v * v +
+            pitch.linearFriction) * dt;
+      x += std::max(v, 0.0f) * dt;
+    }
+    return x;
+  };
+  float lo = arrivalSpeed, hi = 45.0f;
+  if (rollDistance(hi) < distance) return hi;
+  for (int i = 0; i < 25; i++) {
+    float mid = 0.5f * (lo + hi);
+    if (rollDistance(mid) < distance) lo = mid; else hi = mid;
+  }
+  return 0.5f * (lo + hi);
 }
 
 Ball::Ball(Match *match) : match(match) {

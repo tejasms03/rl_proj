@@ -139,6 +139,15 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
       float gaugeFactor = (gauge_ms - baseTime_ms) * (1.0f / float(1000 - baseTime_ms));
       gaugeFactor = clamp(gaugeFactor, 0.0f, 1.0f);
 
+      // rl_project phase 0: agent kick power and pass assists.
+      const ScenarioConfig &scenario = GetScenarioConfig();
+      const bool powerControl = scenario.kick_power_control;
+      const float agentPower = hid->GetKickPower();
+      auto kickPower = [&](float gaugeExponent) {
+        if (powerControl && agentPower >= 0.0f) return clamp(agentPower, 0.0f, 1.0f);
+        return clamp(std::pow(gaugeFactor, gaugeExponent), 0.01f, 1.0f);
+      };
+
       // action button released!
 
       // force set piece methods
@@ -170,11 +179,15 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.useDesiredMovement = false;
         command.useDesiredLookAt = false;
 
-        float inputPower = clamp(std::pow(gaugeFactor, 0.7f), 0.01f, 1.0f);
+        float inputPower = kickPower(0.7f);
         command.touchInfo.inputDirection = inputDirection;
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = GetConfiguration()->GetReal("gameplay_shortpass_autodirection", _default_ShortPass_AutoDirection);
         command.touchInfo.autoPowerBias = GetConfiguration()->GetReal("gameplay_shortpass_autopower", _default_ShortPass_AutoPower);
+        if (powerControl) {
+          command.touchInfo.autoDirectionBias = scenario.pass_direction_assist;
+          command.touchInfo.autoPowerBias = scenario.pass_power_assist;
+        }
         AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
@@ -187,11 +200,15 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.useDesiredMovement = false;
         command.useDesiredLookAt = false;
 
-        float inputPower = clamp(std::pow(gaugeFactor, 0.65f), 0.01f, 1.0f);
+        float inputPower = kickPower(0.65f);
         command.touchInfo.inputDirection = inputDirection;
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = GetConfiguration()->GetReal("gameplay_throughpass_autodirection", _default_ThroughPass_AutoDirection);
         command.touchInfo.autoPowerBias = GetConfiguration()->GetReal("gameplay_throughpass_autopower", _default_ThroughPass_AutoPower);
+        if (powerControl) {
+          command.touchInfo.autoDirectionBias = scenario.pass_direction_assist;
+          command.touchInfo.autoPowerBias = scenario.pass_power_assist;
+        }
         AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
@@ -204,11 +221,15 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.useDesiredMovement = false;
         command.useDesiredLookAt = false;
 
-        float inputPower = clamp(std::pow(gaugeFactor, 0.55f), 0.01f, 1.0f);
+        float inputPower = kickPower(0.55f);
         command.touchInfo.inputDirection = inputDirection;
         command.touchInfo.inputPower = inputPower;
         command.touchInfo.autoDirectionBias = GetConfiguration()->GetReal("gameplay_highpass_autodirection", _default_HighPass_AutoDirection);
         command.touchInfo.autoPowerBias = GetConfiguration()->GetReal("gameplay_highpass_autopower", _default_HighPass_AutoPower);
+        if (powerControl) {
+          command.touchInfo.autoDirectionBias = scenario.pass_direction_assist;
+          command.touchInfo.autoPowerBias = scenario.pass_power_assist;
+        }
         AI_GetPass(CastPlayer(), command.desiredFunctionType, command.touchInfo.inputDirection, command.touchInfo.inputPower, command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias, command.touchInfo.desiredDirection, command.touchInfo.desiredPower, command.touchInfo.targetPlayer);
 
         commandQueue.push_back(command);
@@ -225,8 +246,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.autoDirectionBias = GetConfiguration()->GetReal("gameplay_shot_autodirection", _default_Shot_AutoDirection);
         command.touchInfo.autoDirectionBias = 1.0f;
         command.touchInfo.desiredDirection = AI_GetShotDirection(CastPlayer(), command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
-        command.touchInfo.desiredPower =
-            clamp(std::pow(gaugeFactor, 0.6f), 0.01f, 1.0f);
+        command.touchInfo.desiredPower = kickPower(0.6f);
 
         commandQueue.push_back(command);
       }

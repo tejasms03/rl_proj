@@ -48,6 +48,10 @@ class AIControlledKeyboard {
 
     // Methods for remote controlling.
     void SetDirection(const blunted::Vector3& new_direction);
+    // rl_project phase 0: kick power in [0, 1] from the agent, or < 0 for
+    // none (use the hold-to-charge gauge). Set before each step's action.
+    void SetKickPower(float power) { kickPower_ = power; }
+    float GetKickPower() const { return kickPower_; }
     bool Disabled() { return disabled_;}
     void SetDisabled(bool disabled);
     void Reset();
@@ -60,6 +64,7 @@ class AIControlledKeyboard {
     float mirror = 1.0f;
     bool disabled_ = false;
     bool buttons_pressed_[e_ButtonFunction_Size];
+    float kickPower_ = -1.0f;
     const e_PlayerColor playerColor;
 };
 

@@ -53,11 +53,17 @@ def _action_index() -> dict[str, int]:
 
 
 def kick_trajectory(kick: str, seed: int, approach_ticks: int = 30, max_ticks: int = 400,
-                    config: dict | None = None) -> Trajectory:
-    """Run toward goal, press the kick action, then record the ball's flight."""
-    scenario, action = KICKS[kick]
+                    config: dict | None = None, power: float | None = None,
+                    scenario: str | None = None) -> Trajectory:
+    """Run toward goal, press the kick action, then record the ball's flight.
+
+    `power` (0-1) is sent with the kick when kick_power_control is on.
+    """
+    default_scenario, action = KICKS[kick]
+    scenario = scenario or default_scenario
     idx = _action_index()
-    plan = [idx["right"]] * approach_ticks + [idx[action]] * 5
+    kick_action = idx[action] if power is None else (idx[action], power)
+    plan = [idx["right"]] * approach_ticks + [kick_action] * 5
     options = {"physics_steps_per_frame": 1, **(config or {})}
     env = make_env(scenario, seed, options)
     pos, rot = [], []
@@ -112,6 +118,57 @@ def summarize(traj: Trajectory) -> dict[str, float]:
         "bend_dist_m": float(along[j]),
         "speed_after_1s": float(speed[min(k + 100, len(speed) - 1)]),
     }
+
+
+# Phase 0 kick power: intended distance = lo + span * power (AI_GetPass).
+POWER_RANGES = {"short_pass": (3.0, 32.0), "long_pass": (15.0, 35.0), "high_pass": (10.0, 50.0)}
+POWER_CONFIG = {"realistic_ball_physics": True, "kick_power_control": True,
+                "pass_direction_assist": 0.0, "pass_power_assist": 0.0}
+
+
+def intended_distance(kick: str, power: float) -> float:
+    """Where a pass at `power` should first land (lofted) or arrive (ground)."""
+    lo, span = POWER_RANGES[kick]
+    distance = lo + span * power
+    return distance * 0.9 if kick == "long_pass" else distance  # driven: lands short
+
+
+def achieved_distance(kick: str, traj: Trajectory, power: float) -> float:
+    """First landing for lofted kicks; for ground passes, where the ball slows
+    to the solver's arrival speed (game pace)."""
+    speed = np.linalg.norm(traj.vel, axis=1)
+    k = int(np.argmax(speed))
+    flight = traj.pos[k:]
+    dist = np.linalg.norm(flight[:, :2] - flight[0, :2], axis=1)
+    if kick == "short_pass":
+        lo, span = POWER_RANGES[kick]
+        arrival = np.clip(7.0 + 0.12 * (lo + span * power), 8.0, 12.0)
+        below = np.nonzero(speed[k:] < arrival)[0]
+        return float(dist[below[0]] if len(below) else dist[-1])
+    z = flight[:, 2]
+    air = np.nonzero(z > 0.15)[0]
+    if not len(air):
+        return float(dist[-1])
+    land = np.nonzero(z[air[0]:] <= 0.12)[0]
+    return float(dist[air[0] + land[0]] if len(land) else dist[-1])
+
+
+def _power_sweep_here(kick, powers, config, scenario):
+    rows = []
+    for power in powers:
+        traj = kick_trajectory(kick, 0, config=config, power=power, scenario=scenario,
+                               max_ticks=600)
+        rows.append((power, intended_distance(kick, power), achieved_distance(kick, traj, power)))
+    return rows
+
+
+def power_sweep(kick: str, powers, config: dict | None = None,
+                scenario: str = "drill_power") -> list[tuple[float, float, float]]:
+    """[(power, intended m, achieved m), ...] in a fresh 100 Hz process."""
+    ctx = multiprocessing.get_context("spawn")
+    with concurrent.futures.ProcessPoolExecutor(max_workers=1, mp_context=ctx) as pool:
+        return pool.submit(_power_sweep_here, kick, list(powers),
+                           config or POWER_CONFIG, scenario).result()
 
 
 def _measure_here(kick: str, seeds: list[int], config: dict | None) -> list[dict[str, float]]:

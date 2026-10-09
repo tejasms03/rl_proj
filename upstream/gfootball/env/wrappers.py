@@ -436,3 +436,43 @@ class MultiAgentToSingleAgent(gym.Wrapper):
         result[idx] = actions[action_idx]
         action_idx += 1
     return result
+
+
+class KickPowerWrapper(gym.Wrapper):
+  """rl_project phase 0: each controlled player chooses an action and a kick
+  power in [0, 1] (used by pass and shot actions).
+
+  Needs the env created with kick_power_control=True. With `bins=None` the
+  action space is continuous: Tuple(MultiDiscrete([n] * k), Box(0, 1, (k,))).
+  With `bins=B` it is MultiDiscrete([n, B] * k) as (action, power bin) pairs,
+  power = bin / (B - 1), for libraries without mixed action spaces.
+  """
+
+  def __init__(self, env, bins=None):
+    gym.Wrapper.__init__(self, env)
+    n = env.action_space.nvec[0] if isinstance(
+        env.action_space, gym.spaces.MultiDiscrete) else env.action_space.n
+    self._players = len(env.action_space.nvec) if isinstance(
+        env.action_space, gym.spaces.MultiDiscrete) else 1
+    self._bins = bins
+    if bins is None:
+      self.action_space = gym.spaces.Tuple((
+          gym.spaces.MultiDiscrete([n] * self._players),
+          gym.spaces.Box(0.0, 1.0, (self._players,), dtype=np.float32)))
+    else:
+      assert bins >= 2
+      self.action_space = gym.spaces.MultiDiscrete([n, bins] * self._players)
+
+  def _to_engine(self, action):
+    if self._bins is None:
+      actions, powers = action
+      pairs = [(int(a), float(np.clip(p, 0.0, 1.0)))
+               for a, p in zip(np.ravel(actions), np.ravel(powers))]
+    else:
+      flat = np.ravel(action)
+      pairs = [(int(flat[2 * i]), float(flat[2 * i + 1]) / (self._bins - 1))
+               for i in range(self._players)]
+    return pairs[0] if self._players == 1 else pairs
+
+  def step(self, action):
+    return self.env.step(self._to_engine(action))

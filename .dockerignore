@@ -1,0 +1,11 @@
+.git
+out
+runs
+**/__pycache__
+upstream/build
+upstream/gfootball.egg-info
+upstream/third_party/gfootball_engine/CMakeCache.txt
+upstream/third_party/gfootball_engine/CMakeFiles
+upstream/third_party/gfootball_engine/*.dylib
+upstream/third_party/gfootball_engine/*.so
+upstream/third_party/gfootball_engine/**/*.a

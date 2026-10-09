@@ -38,8 +38,12 @@ PREFERRED_FOOT = {None: 0, 'right': 1, 'left': 2}
 # Scenarios may set them via builder.config(); an env option of the same
 # name (other_config_options) takes precedence.
 PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
-                  'pitch_condition')
+                  'pitch_condition', 'ball_pace', 'kick_power_control',
+                  'pass_direction_assist', 'pass_power_assist')
 PITCH_CONDITIONS = {'normal': 0, 'dry': 1, 'wet': 2, 'long_grass': 3}
+BALL_PACES = {'game': 0, 'realistic': 1}
+# Switches set by name; the engine stores their index.
+NAMED_SWITCHES = {'pitch_condition': PITCH_CONDITIONS, 'ball_pace': BALL_PACES}
 
 
 def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
@@ -104,11 +108,12 @@ class Scenario(object):
     for name in PATCH_SWITCHES:
       if name in self._config:
         value = self._config[name]
-        if name == 'pitch_condition':
-          if value not in PITCH_CONDITIONS:
-            raise ValueError('pitch_condition must be one of %s, got %r' %
-                             (sorted(PITCH_CONDITIONS), value))
-          value = PITCH_CONDITIONS[value]
+        if name in NAMED_SWITCHES:
+          names = NAMED_SWITCHES[name]
+          if value not in names:
+            raise ValueError('%s must be one of %s, got %r' %
+                             (name, sorted(names), value))
+          value = names[value]
         setattr(self._scenario_cfg, name, value)
 
   def _ApplyPlayerOverrides(self):

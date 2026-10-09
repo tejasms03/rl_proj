@@ -66,6 +66,7 @@ void AIControlledKeyboard::Reset() {
   DO_VALIDATION;
   direction_ = blunted::Vector3(0, 0, 0);
   memset(buttons_pressed_, 0, sizeof(buttons_pressed_));
+  kickPower_ = -1.0f;
 }
 
 void AIControlledKeyboard::ProcessState(EnvState* state) {

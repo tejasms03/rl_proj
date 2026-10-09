@@ -156,8 +156,12 @@ class FootballEnv(gym.Env):
       if not player.can_play_right():
         for x in range(player.num_controlled_right_players()):
           index = x + player.num_controlled_left_players()
-          a[index] = observation_rotation.flip_single_action(
-              a[index], self._config)
+          if isinstance(a[index], (tuple, list)):  # rl_project: (action, power)
+            a[index] = (observation_rotation.flip_single_action(
+                a[index][0], self._config), a[index][1])
+          else:
+            a[index] = observation_rotation.flip_single_action(
+                a[index], self._config)
       left_actions.extend(a[:player.num_controlled_left_players()])
       right_actions.extend(a[player.num_controlled_left_players():])
     actions = left_actions + right_actions
@@ -203,6 +207,16 @@ class FootballEnv(gym.Env):
 
   def close(self):
     self._env.close()
+
+  def set_player_stats(self, side, player, stats):
+    """rl_project phase 0: mid-game stat change, side is 'left' or 'right'."""
+    self._env.set_player_stats(side == 'left', player, stats)
+
+  def apply_archetype(self, side, player, position, name):
+    """rl_project phase 0: give a player an archetype's stats mid-game
+    (gfootball.env.archetypes; height only applies at kickoff)."""
+    from gfootball.env import archetypes
+    self.set_player_stats(side, player, archetypes.archetype(position, name)['stats'])
 
   def get_state(self, to_pickle={}):
     return self._env.get_state(to_pickle)

@@ -73,6 +73,14 @@ class GameEnv_Python : public GameEnv {
     ball->Touch(Vector3(vx, vy, vz));
   }
 
+  // rl_project phase 0: mid-game stat change, see Match::SetPlayerStats.
+  bool set_player_stats_python(bool left_team, int player, bp::list stats) {
+    ContextHolder c(this);
+    std::vector<float> values;
+    for (int i = 0; i < bp::len(stats); i++) values.push_back(bp::extract<float>(stats[i]));
+    return GetGameTask()->GetMatch()->SetPlayerStats(left_team ? 0 : 1, player, values);
+  }
+
   void step_python() {
     ContextHolder c(this);
     PyThreadState* _save = NULL;
@@ -161,8 +169,10 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def("get_player_attributes",
            &GameEnv_Python::get_player_attributes_python)
       .def("launch_ball", &GameEnv_Python::launch_ball_python)
+      .def("set_player_stats", &GameEnv_Python::set_player_stats_python)
       .def("get_frame", &GameEnv_Python::get_frame_python)
       .def("perform_action", &GameEnv_Python::action)
+      .def("set_kick_power", &GameEnv_Python::set_kick_power)
       .def("sticky_action_state", &GameEnv_Python::sticky_action_state)
       .def("step", &GameEnv_Python::step_python)
       .def("get_state", &GameEnv_Python::get_state_python)
@@ -216,6 +226,10 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("realistic_ball_physics",
                      &ScenarioConfig::realistic_ball_physics)
       .def_readwrite("pitch_condition", &ScenarioConfig::pitch_condition)
+      .def_readwrite("ball_pace", &ScenarioConfig::ball_pace)
+      .def_readwrite("kick_power_control", &ScenarioConfig::kick_power_control)
+      .def_readwrite("pass_direction_assist", &ScenarioConfig::pass_direction_assist)
+      .def_readwrite("pass_power_assist", &ScenarioConfig::pass_power_assist)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
                      &ScenarioConfig::end_episode_on_score)

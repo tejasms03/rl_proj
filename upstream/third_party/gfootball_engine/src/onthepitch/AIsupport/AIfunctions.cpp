@@ -1007,9 +1007,14 @@ void AI_GetAutoPass(e_FunctionType passType, const Vector3 &vector,
     // rl_project P2: ground pass solved on the actual pitch, arriving firm
     // enough to beat a closing defender: ~5 m/s short, up to 9 m/s long.
     float distance = vector.Get2D().GetLength();
-    float arrival = clamp(4.0f + 0.12f * distance, 5.0f, 9.0f);
+    // game pace (FIFA-like): firm, arriving at 8-12 m/s; realistic: 5-9 m/s.
+    float arrival = GetScenarioConfig().ball_pace == 0
+                        ? clamp(7.0f + 0.12f * distance, 8.0f, 12.0f)
+                        : clamp(4.0f + 0.12f * distance, 5.0f, 9.0f);
     PitchPhysics pitch = GetPitchPhysics(GetScenarioConfig().pitch_condition, true);
-    float speed = clamp(RealisticGroundPassSpeed(distance, arrival, pitch), 6.0f, 30.0f);
+    // x1.1: the slight launch loft and first bounce cost ~10% of the roll
+    // (measured with grf_tools power sweep).
+    float speed = clamp(RealisticGroundPassSpeed(distance * 1.1f, arrival, pitch), 6.0f, 30.0f);
     resultingDirection = (vector.Get2D().GetNormalized(Vector3(1, 0, 0)) + Vector3(0, 0, 0.05f)).GetNormalized(0);
     resultingPower = speed / 36.0f - 0.3f;
     return;
@@ -1024,16 +1029,23 @@ void AI_GetAutoPass(e_FunctionType passType, const Vector3 &vector,
     float distance = vector.Get2D().GetLength();
     radian elevation;
     float backspin, carry;
+    const bool gamePace = GetScenarioConfig().ball_pace == 0;
     if (passType == e_FunctionType_HighPass) {
-      // ~40 deg for short lofted balls down to ~28 deg for long switches.
-      elevation = clamp(40.0f - 0.25f * (distance - 20.0f), 28.0f, 40.0f) * pi / 180.0f;
+      // realistic: ~40 deg for short lofted balls down to ~28 deg for long
+      // switches; game (FIFA-like): flatter and quicker, 30 down to 25 deg.
+      elevation = (gamePace ? clamp(30.0f - 0.1f * (distance - 20.0f), 25.0f, 30.0f)
+                            : clamp(40.0f - 0.25f * (distance - 20.0f), 28.0f, 40.0f)) *
+                  pi / 180.0f;
       backspin = realisticHighPassBackspin;
       carry = distance;
     } else {
-      // Driven long ball: low trajectory, lands short and runs on.
-      elevation = 15.0f * pi / 180.0f;
+      // Driven long ball: low trajectory. realistic lands at 75% and runs
+      // on; game lands at ~90% so it reaches the receiver quickly (solved
+      // for 80%: the kicker's run-up adds ~12% carry, measured).
+      elevation = (gamePace ? clamp(18.0f - 0.1f * (distance - 30.0f), 12.0f, 18.0f) : 15.0f) *
+                  pi / 180.0f;
       backspin = realisticLongPassBackspin;
-      carry = distance * 0.75f;
+      carry = distance * (gamePace ? 0.8f : 0.75f);
     }
     float speed = RealisticSpeedForCarry(carry, elevation, backspin, 8.0f, 40.0f);
     resultingDirection = vector.Get2D().GetNormalized(Vector3(1, 0, 0)) * std::cos(elevation) +
@@ -1067,10 +1079,13 @@ void AI_GetPass(Player *player, e_FunctionType passType,
 
   bool fullAutoDirection = false;
   bool fullAutoPower = false;
+  const bool powerControl = GetScenarioConfig().kick_power_control;
   if (player->ExternalControllerActive()) {
     DO_VALIDATION;
-    fullAutoDirection = true;
-    fullAutoPower = true;
+    // rl_project phase 0: under kick_power_control an assist of 1 is the
+    // upstream fully automatic mode; below 1 the semi-assisted blend applies.
+    fullAutoDirection = !powerControl || GetScenarioConfig().pass_direction_assist >= 0.999f;
+    fullAutoPower = !powerControl || GetScenarioConfig().pass_power_assist >= 0.999f;
   }
 
   float adaptedAutoDirectionBias = autoDirectionBias;
@@ -1086,7 +1101,17 @@ void AI_GetPass(Player *player, e_FunctionType passType,
     DO_VALIDATION;
     playerPos = player->GetTouchPos().Get2D();
   }
-  Vector3 manualTarget = playerPos + inputDirection * clamp(inputPower * 60.0f, 1.0f, 100.0f);
+  // rl_project phase 0: with kick_power_control, power maps linearly to an
+  // intended distance per pass type: ground 3-35 m, driven long 15-50 m,
+  // lofted 10-60 m (the longest the engine's kick-power cap allows).
+  float manualDistance = clamp(inputPower * 60.0f, 1.0f, 100.0f);
+  if (powerControl) {
+    float power = clamp(inputPower, 0.0f, 1.0f);
+    if (passType == e_FunctionType_LongPass) manualDistance = 15.0f + 35.0f * power;
+    else if (passType == e_FunctionType_HighPass) manualDistance = 10.0f + 50.0f * power;
+    else manualDistance = 3.0f + 32.0f * power;
+  }
+  Vector3 manualTarget = playerPos + inputDirection * manualDistance;
 
   std::vector<Player*> players;
   player->GetTeam()->GetActivePlayers(players);

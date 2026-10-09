@@ -170,6 +170,13 @@ bool GameEnv::sticky_action_state(int action, bool left_team, int player) {
   return false;
 }
 
+void GameEnv::set_kick_power(bool left_team, int player, float power) {
+  SetGame(this);
+  int controller_id = player + (left_team ? 0 : 11);
+  static_cast<AIControlledKeyboard*>(GetControllers()[controller_id])
+      ->SetKickPower(power);
+}
+
 void GameEnv::action(int action, bool left_team, int player) {
   SetGame(this);
   GetTracker()->setDisabled(true);

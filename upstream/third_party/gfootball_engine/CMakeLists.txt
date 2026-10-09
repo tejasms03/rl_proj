@@ -168,11 +168,12 @@ else()  # WIN32
   set(LIB_NAME _gameplayfootball)
 endif()
 
-if(APPLE)
-  # A Python extension module must not link libpython on macOS: when the
-  # interpreter has Python statically linked (conda, python.org builds), the
-  # process would end up with two Python runtimes. Resolve Python symbols from
-  # the host interpreter at load time instead.
+if(UNIX)
+  # A Python extension module must not link libpython: when the interpreter
+  # has Python statically linked (conda on macOS and Linux, python.org
+  # builds), the process would end up with two Python runtimes. Resolve
+  # Python symbols from the host interpreter at load time instead (Linux
+  # allows undefined symbols in shared libraries; macOS needs the flag below).
   list(REMOVE_ITEM LIBRARIES ${Python_LIBRARIES})
 endif()
 
