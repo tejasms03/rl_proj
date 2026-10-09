@@ -33,6 +33,12 @@ class Match;
 struct Anim;
 
 e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname);
+// rl_project P4 (situational_accuracy): difficulty to add to a kick's
+// engine difficulty factor; 0 when the switch is off.
+float SituationalKickDifficulty(Player *player, const std::string &bodypart);
+// rl_project P4: heavy first touch: mixes part of the incoming ball movement
+// into a receiving touch for fast balls and poor ball control.
+Vector3 ApplyHeavyTouch(Ball *ball, Player *player, const Vector3 &touch);
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow = 1.0f, float bias = 1.0f);

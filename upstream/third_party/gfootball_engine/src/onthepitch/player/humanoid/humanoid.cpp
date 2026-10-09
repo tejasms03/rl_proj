@@ -412,6 +412,7 @@ void Humanoid::Process() {
         radian xRot = 0;
         radian yRot = 0;
         Vector3 touchVec = GetBallControlVector(match->GetBall(), CastPlayer(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(currentAnim.positions), currentAnim, currentAnim.frameNum, spatialState, decayingPositionOffset, xRot, yRot);
+        touchVec = ApplyHeavyTouch(match->GetBall(), CastPlayer(), touchVec);  // rl_project P4
         if (currentAnim.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           DO_VALIDATION;
@@ -2313,6 +2314,10 @@ Vector3 Humanoid::GetBestPossibleTouch(const Vector3 &desiredTouch,
   if (functionType == e_FunctionType_ShortPass ||
       functionType == e_FunctionType_LongPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(technical_shortpass) * 0.5f);
   if (functionType == e_FunctionType_HighPass) difficultyFactor *= (1.0f - CastPlayer()->GetStat(technical_highpass)  * 0.5f);
+  if (GetScenarioConfig().situational_accuracy) {  // rl_project P4
+    difficultyFactor = std::max(0.0f, difficultyFactor + SituationalKickDifficulty(
+        CastPlayer(), currentAnim.anim->GetVariable("touch_bodypart")));
+  }
 
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;

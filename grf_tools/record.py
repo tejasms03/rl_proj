@@ -43,6 +43,20 @@ def _v3_plan(kick):
     return lambda f: _V3["right"] if f < 8 else (_V3[kick] if f < 10 else _V3["release_direction"])
 
 
+def _fizz_at_receiver(engine):
+    # drill_receive: a firm ground ball at the receiver ~15 m away.
+    engine.launch_ball(14.0, 0.0, 0.11, 25.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+
+_NERVOUS = {"player_overrides": {"left": {1: {"stats": {
+    "mental_calmness": 0.1, "technical_shot": 0.3}}}}}
+
+
+def _receiver(control):
+    return {"realistic_ball_physics": True, "situational_accuracy": True,
+            "player_overrides": {"left": {2: {"stats": {"technical_ballcontrol": control}}}}}
+
+
 def _curl_launch(sign):
     # From drill_shot's ball spot (22 m out, central): 25 m/s, 6 degrees,
     # aimed wide of the post, 60 rad/s sidespin bending it back in.
@@ -82,6 +96,16 @@ CLIPS = {
         scenario="drill_through", frames=75, plans=(_v3_plan("short_pass"), _v3_plan("through_ball")),
         left=_P3, right=_P3,
         caption=("ground pass: to his feet", "through ball: into space ahead of him")),
+    "pressure_shot": dict(
+        scenario="drill_pressure", frames=28, seeds=(0, 3, 7, 11), plan=_pass_plan("shot"),
+        left={"realistic_ball_physics": True, **_NERVOUS},
+        right={"realistic_ball_physics": True, "situational_accuracy": True, **_NERVOUS},
+        caption=("P4 off: defender 1 m away", "P4 on: same shooter under pressure")),
+    "first_touch": dict(
+        scenario="drill_receive", frames=60, plan=lambda f: 0,
+        left=_receiver(1.0), right=_receiver(0.1),
+        launch=(_fizz_at_receiver, _fizz_at_receiver),
+        caption=("ball control 1.0", "ball control 0.1: heavy first touch")),
     "wet_pitch": dict(
         scenario="drill_pass_short", frames=90, plan=_pass_plan("short_pass"),
         left={"realistic_ball_physics": True},
@@ -96,19 +120,24 @@ def _render(clip_name: str, side: int) -> list[np.ndarray]:
     env = make_env(clip["scenario"], seed=3, config=config)
     frames = []
     try:
-        env.reset()
-        env.render(mode="rgb_array")  # switches the engine to rendering mode
-        if "launch" in clip:
-            clip["launch"][side](env.unwrapped._env._env)
-        for f in range(clip["frames"]):
-            plan = clip["plans"][side] if "plans" in clip else clip["plan"]
-            obs, _, done, _ = env.step(plan(f))
-            frame = env.render(mode="rgb_array")
-            if frame.shape[1::-1] != HALF:
-                frame = cv2.resize(frame, HALF, interpolation=cv2.INTER_AREA)
-            frames.append(frame)
-            if done:
-                break
+        # Several episodes back to back when the clip lists seeds.
+        for episode, seed in enumerate(clip.get("seeds", (None,))):
+            if seed is not None:
+                env.unwrapped._config.set_scenario_value("game_engine_random_seed", seed)
+            env.reset()
+            if episode == 0:
+                env.render(mode="rgb_array")  # switches the engine to rendering mode
+            if "launch" in clip:
+                clip["launch"][side](env.unwrapped._env._env)
+            for f in range(clip["frames"]):
+                plan = clip["plans"][side] if "plans" in clip else clip["plan"]
+                obs, _, done, _ = env.step(plan(f))
+                frame = env.render(mode="rgb_array")
+                if frame.shape[1::-1] != HALF:
+                    frame = cv2.resize(frame, HALF, interpolation=cv2.INTER_AREA)
+                frames.append(frame)
+                if done:
+                    break
     finally:
         env.close()
     return frames

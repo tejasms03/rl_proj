@@ -159,6 +159,7 @@ struct ScenarioConfig {
     state->process(kick_power_control);
     state->process(pass_direction_assist);
     state->process(pass_power_assist);
+    state->process(situational_accuracy);
   }
 
   void ProcessState(EnvState* state) {
@@ -222,6 +223,9 @@ struct ScenarioConfig {
   bool kick_power_control = false;
   float pass_direction_assist = 1.0f;  // 1 = aim snaps to a teammate
   float pass_power_assist = 0.0f;      // 0 = power sets the distance exactly
+  // P4: kick accuracy depends on pressure, composure and weak foot; first
+  // touch on incoming ball speed and ball control.
+  bool situational_accuracy = false;
   int second_half = 999999999;
 
  private:

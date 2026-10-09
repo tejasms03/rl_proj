@@ -2,7 +2,7 @@
 
 A fork of Google Research Football (GRF) 2.10.2 with more realistic football mechanics. We build and test it first, then freeze it, then train RL agents on it.
 
-*Last updated 2026-10-09.*
+*Last updated 2026-10-09. **Frozen as `v1.0`.***
 
 **Order:** finish patches → test → freeze `v1.0` → RL. Any change to physics or actions after RL starts makes trained agents obsolete. After the freeze, changes go into `v1.1` and need retraining.
 
@@ -142,27 +142,21 @@ Built as variants of existing kicks (a kick variant travels with the command, li
 - `v3` = the 19 default actions + these 3; `default`, `v2` unchanged; the `full` set (play_game) has them appended; gamepad buttons 6/7/8
 - Tests: `tests/test_p3_kicks.py` (curl bends > 1.5 m and well beyond a normal shot; chip scores on every seed; through ball runs past a standing receiver). Calibrated for `realistic_ball_physics`; the chip ignores kick power (it is solved to the goal)
 
-### P4: situational accuracy (no new actions)
+### P4: situational accuracy (switch `situational_accuracy`) — **done**
 
-**What:** shot and pass error depends on the situation, not just randomness. Also first touch.
+Extends the engine's existing kick difficulty (body angle, run speed, body position, volley, power, plus the shot/pass stat) with:
+- **Pressure:** nearest opponent from 4 m (none) to 0.8 m (full), softened by `mental_calmness`
+- **Weak foot:** +0.3 difficulty when the kicking foot (`touch_bodypart`, mirrored with the animation) is not the player's `preferred_foot` (P1); no effect when the foot is unspecified
+- **Baseline −0.08:** unpressured strong-foot kicks get slightly easier, so accuracy moves between situations instead of only getting worse
+- **Heavy first touch:** receiving touches (trap and ball control) carry on part of the incoming ball's movement, scaled by ball speed *relative to the player* (3 → 15 m/s) and `technical_ballcontrol`; dribbling is unaffected
 
-**How:**
-- Error size is scaled by these factors (each bounded; the formula is written down in the code):
-  - Defensive pressure: distance and number of opponents within about 2 m
-  - Body angle between facing and target
-  - Ball height at contact (volleys and half-volleys harder)
-  - Weak foot (needs P1's `preferred_foot`)
-  - The relevant stat (`technical_shot` / `technical_shortpass` / …) and `mental_calmness`
-- Where: the random-error terms in `humanoid_utils.cpp:481–525` (shots) and the pass equivalents
-- First touch: when receiving, a speed-dependent miscontrol chance (ball bounces away further), scaled by `technical_ballcontrol`
+Measured (`drill_pressure`, nervous low-skill shooter, 30 seeds): goal-line spread 1.31 m under pressure vs 0.25 m free, average height 1.45 m vs 0.11 m, 25/30 vs 30/30 goals.
 
-**Done when:**
-- In a drill, shots under pressure have a lower on-target rate than unpressured ones (CI excludes 0)
-- Weak-foot shots are measurably less accurate
-- A 30 m/s incoming pass gives longer first-touch bounce than 10 m/s
-- With all-default settings the overall error is about the same as upstream, so the patch redistributes error by situation rather than making everything harder
+Whole matches (24 AI-vs-AI each, realistic ball): P4 on 1.33 goals / 4.5 shots / 50% inferred pass completion vs off 1.46 / 5.0 / 52%, conversion 30% vs 29% — within noise, so P4 shifts accuracy between situations rather than lowering it overall.
 
----
+**Upstream bug found:** `Player::GetClosestOpponentDistance` compares positions across a mirrored and an unmirrored team (GRF mirrors teams for processing), so it can be off by a pitch length (69 m reported for a defender 1.9 m away). P4 uses its own mirror-aware distance; the upstream function (used in dribbling "annoyance") is left as is so T1 stays exact.
+
+**Related option, not a patch:** `use_magnet` (scenario config, default on) steers the controlled player's movement toward the ball instead of following the input exactly. Turn it off for fully manual agent movement.
 
 ## 2. Testing
 

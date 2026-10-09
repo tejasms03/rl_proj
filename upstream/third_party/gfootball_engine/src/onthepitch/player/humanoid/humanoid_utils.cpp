@@ -38,6 +38,43 @@ e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
     return e_TouchType_Intentional_Nonkicked;
 }
 
+// Distance to the nearest active opponent. Upstream's
+// Player::GetClosestOpponentDistance compares positions across a mirrored
+// and a non-mirrored team (GRF mirrors teams for processing), so it can be
+// off by a pitch length; un-mirror the opponent's position first.
+static float NearestOpponentDistance(Player *player) {
+  DO_VALIDATION;
+  Team *own = player->GetTeam();
+  Team *opp = GetGameTask()->GetMatch()->GetTeam(1 - own->GetID());
+  const bool flip = own->isMirrored() != opp->isMirrored();
+  float nearest = 1000.0f;
+  for (auto p : opp->GetAllPlayers()) {
+    DO_VALIDATION;
+    if (!p->IsActive()) continue;
+    Vector3 pos = p->GetPosition();
+    if (flip) pos.Mirror();
+    nearest = std::min(nearest, (pos - player->GetPosition()).GetLength());
+  }
+  return nearest;
+}
+
+float SituationalKickDifficulty(Player *player, const std::string &bodypart) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().situational_accuracy) return 0.0f;
+  // Pressure: nearest opponent from 4 m (none) to 0.8 m (full), softened by
+  // composure.
+  float pressure = 1.0f - NormalizedClamp(NearestOpponentDistance(player), 0.8f, 4.0f);
+  float difficulty = pressure * (0.45f - 0.25f * player->GetStat(mental_calmness));
+  // Weak foot (the anim's touch_bodypart is mirrored with the anim).
+  int preferred = player->GetPlayerData()->GetPreferredFoot();  // 1 right, 2 left
+  int kicking = bodypart.find("left") != std::string::npos ? 2
+              : bodypart.find("right") != std::string::npos ? 1 : 0;
+  if (preferred != 0 && kicking != 0 && preferred != kicking) difficulty += 0.3f;
+  // Baseline: unpressured strong-foot kicks get slightly easier, so the
+  // average accuracy stays close to upstream; it moves between situations.
+  return difficulty - 0.08f;
+}
+
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow, float bias) {
@@ -370,8 +407,22 @@ Vector3 GetTrapVector(Match *match, Player *player, const Vector3 &nextStartPos,
   ballControl.coords[2] += ball->GetMovement().coords[2] * heightFactor * 1.0f +
                            heightFactor * 4.0f;
 
-  return ballControl * (1.0f - ballMovementFactor) +
-         ball->GetMovement() * ballMovementFactor;
+  return ApplyHeavyTouch(ball, player, ballControl * (1.0f - ballMovementFactor) +
+                                           ball->GetMovement() * ballMovementFactor);
+}
+
+Vector3 ApplyHeavyTouch(Ball *ball, Player *player, const Vector3 &touch) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().situational_accuracy) return touch;
+  // Ball speed relative to the player: a dribbled ball moves with him, a
+  // ball fizzed at him does not. 3 m/s (soft) to 15 m/s (fizzed); game-pace
+  // passes arrive at ~8-12 m/s.
+  float relative = (ball->GetMovement() - player->GetMovement()).Get2D().GetLength();
+  float heavy = NormalizedClamp(relative, 3.0f, 15.0f) *
+                (1.0f - 0.7f * player->GetStat(technical_ballcontrol)) *
+                boostrandom(0.5f, 1.0f);
+  float mix = heavy * 0.7f;  // part of the incoming movement carries on
+  return touch * (1.0f - mix) + ball->GetMovement() * mix;
 }
 
 Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
@@ -464,6 +515,10 @@ Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
                          (0.6f + playerMovBallMovEasinessFactor * 0.4f) *
                          (0.6f + powerEasinessFactor * 0.4f);
   float difficultyFactor = clamp(1.0f - easinessFactor, 0.0f, 1.0f);
+  if (GetScenarioConfig().situational_accuracy) {
+    difficultyFactor = clamp(difficultyFactor + SituationalKickDifficulty(
+        player, currentAnim.anim->GetVariable("touch_bodypart")), 0.0f, 1.0f);
+  }
 
   // best case result
 

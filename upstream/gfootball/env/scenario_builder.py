@@ -39,7 +39,8 @@ PREFERRED_FOOT = {None: 0, 'right': 1, 'left': 2}
 # name (other_config_options) takes precedence.
 PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
                   'pitch_condition', 'ball_pace', 'kick_power_control',
-                  'pass_direction_assist', 'pass_power_assist')
+                  'pass_direction_assist', 'pass_power_assist',
+                  'situational_accuracy')
 PITCH_CONDITIONS = {'normal': 0, 'dry': 1, 'wet': 2, 'long_grass': 3}
 BALL_PACES = {'game': 0, 'realistic': 1}
 # Switches set by name; the engine stores their index.
