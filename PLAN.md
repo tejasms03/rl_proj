@@ -54,9 +54,27 @@ Already worked out while installing:
 
 **Done when:** a fresh clone + `build.sh` gives a working env; test T0 passes.
 
-### P1: per-player attributes (no new actions)
+### P1: per-player attributes (no new actions) — **done**
 
-**What:** individual stats per player instead of everyone at 0.6, plus preferred foot and height.
+**Correction to the original premise:** players are *not* all 0.6. Each team is built from 11 hard-coded profiles (`data/teamdata.cpp:277`), assigned by the order players are added to the scenario. Both teams get the same profiles. Slot 0 (usually the keeper) has a centre-back profile, and slots 5–10 are attackers with many stats at 1.0. The 0.6 constructor is only used for officials. Stats are then scaled by team difficulty and fatigue.
+
+**As built:**
+- `AddPlayer(..., stats={...}, height=1.85, preferred_foot='left')` in scenario files
+- `player_overrides` env option, applied by slot to **any** scenario:
+  `{'left' | 'right': {slot | '*': {'stats': {...}, 'height': m, 'preferred_foot': 'left' | 'right'}}}`
+- Raw observations gain `left_team_attributes` / `right_team_attributes` (players × 24: 22 stats, height, preferred foot), fetched once per episode; columns in `football_env_core.PLAYER_ATTRIBUTE_NAMES`
+- Overrides are saved in env state, so save/restore keeps them
+- Tests: `tests/test_p1_attributes.py`, plus a P1 config in the determinism and save/restore tests
+
+**Finding: stats matter only a little in GRF.**
+- Top sprint speed is `8 m/s × (0.9 + 0.1 × velocity)`, so 7.2–8.0 m/s across the whole stat range (`playerbase.cpp:133`). Real players range from about 7.5 to about 9.8 m/s.
+- A faster player still wins a footrace for a loose ball 15/15 (AI on both sides), so the effect is consistent, just small.
+- Attackers with *every* stat at 0.9 vs 0.3 score 33% vs 26% in `academy_3_vs_1_with_keeper` (300 episodes each, p ≈ 0.06).
+- Proposal **P1b** (switch, default off): widen how strongly stats affect play, starting with sprint speed and acceleration, calibrated to real data. Not started; needs a decision.
+
+**Original design notes:**
+
+**What:** individual stats per player, plus preferred foot and height.
 
 **How:**
 - `FormationEntry` (`gamedefines.hpp`) gets a stats map, `preferred_foot`, `height`

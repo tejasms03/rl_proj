@@ -807,6 +807,24 @@ void Match::GetTeamState(SharedInfo *state,
   }
 }
 
+std::vector<float> Match::GetPlayerAttributes(int team_id) {
+  DO_VALIDATION;
+  std::vector<float> attributes;
+  std::vector<Player *> players;
+  teams[team_id]->GetAllPlayers(players);
+  for (auto player : players) {
+    DO_VALIDATION;
+    if (player->CastHumanoid() == NULL) continue;
+    const PlayerData *data = player->GetPlayerData();
+    for (int stat = 0; stat < player_stat_max; stat++) {
+      attributes.push_back(data->GetStat(PlayerStat(stat)));
+    }
+    attributes.push_back(data->GetHeight());
+    attributes.push_back(data->GetPreferredFoot());
+  }
+  return attributes;
+}
+
 void Match::GetState(SharedInfo *state) {
   DO_VALIDATION;
   state->ball_position = ball->GetAveragePosition(5).coords;

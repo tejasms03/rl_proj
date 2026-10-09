@@ -269,7 +269,21 @@ struct FormationEntry {
     return role == f.role &&
         lazy == f.lazy &&
         position == f.position &&
-        controllable == f.controllable;
+        controllable == f.controllable &&
+        stat_overrides == f.stat_overrides &&
+        height == f.height &&
+        preferred_foot == f.preferred_foot;
+  }
+  // rl_project P1: stat override by PlayerStat index; negative = keep the
+  // built-in profile value. Sized lazily so untouched entries stay empty.
+  void SetStatOverride(int stat, float value) { DO_VALIDATION;
+    if (stat_overrides.size() <= (size_t)stat) {
+      stat_overrides.resize(stat + 1, -1.0f);
+    }
+    stat_overrides[stat] = value;
+  }
+  float GetStatOverride(int stat) const {
+    return (size_t)stat < stat_overrides.size() ? stat_overrides[stat] : -1.0f;
   }
   Vector3 position_env() { DO_VALIDATION;
     return Vector3(position.coords[0],
@@ -282,6 +296,9 @@ struct FormationEntry {
     state->process(start_position);
     state->process(lazy);
     state->process(controllable);
+    state->process(stat_overrides);
+    state->process(height);
+    state->process(preferred_foot);
   }
   Vector3 position; // adapted to player role (combination of databasePosition and hardcoded role position)
   Vector3 start_position;
@@ -289,6 +306,10 @@ struct FormationEntry {
   bool lazy = false; // Computer doesn't perform any actions for lazy player.
   // Can be controlled by the player?
   bool controllable = true;
+  // rl_project P1 overrides. Defaults keep upstream behaviour.
+  std::vector<float> stat_overrides;
+  float height = -1.0f;  // metres; <= 0 keeps the built-in profile height
+  int preferred_foot = 0;  // 0 = unspecified (upstream), 1 = right, 2 = left
 };
 
 struct PlayerImage {

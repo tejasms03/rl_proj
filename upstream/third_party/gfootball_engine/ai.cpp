@@ -50,6 +50,17 @@ class GameEnv_Python : public GameEnv {
     return str;
   }
 
+  // rl_project P1: flat list, see Match::GetPlayerAttributes.
+  bp::list get_player_attributes_python(bool left_team) {
+    ContextHolder c(this);
+    bp::list result;
+    for (float value :
+         GetGameTask()->GetMatch()->GetPlayerAttributes(left_team ? 0 : 1)) {
+      result.append(value);
+    }
+    return result;
+  }
+
   void step_python() {
     ContextHolder c(this);
     PyThreadState* _save = NULL;
@@ -135,6 +146,8 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
   class_<GameEnv_Python>("GameEnv")
       .def("start_game", &GameEnv_Python::start_game)
       .def("get_info", &GameEnv_Python::get_info)
+      .def("get_player_attributes",
+           &GameEnv_Python::get_player_attributes_python)
       .def("get_frame", &GameEnv_Python::get_frame_python)
       .def("perform_action", &GameEnv_Python::action)
       .def("sticky_action_state", &GameEnv_Python::sticky_action_state)
@@ -211,7 +224,35 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readonly("role", &FormationEntry::role)
       .add_property("position", &FormationEntry::position_env)
       .def_readwrite("lazy", &FormationEntry::lazy)
-      .def_readwrite("controllable", &FormationEntry::controllable);
+      .def_readwrite("controllable", &FormationEntry::controllable)
+      .def_readwrite("height", &FormationEntry::height)
+      .def_readwrite("preferred_foot", &FormationEntry::preferred_foot)
+      .def("set_stat", &FormationEntry::SetStatOverride)
+      .def("get_stat", &FormationEntry::GetStatOverride);
+
+  enum_<PlayerStat>("e_PlayerStat")
+      .value("physical_balance", physical_balance)
+      .value("physical_reaction", physical_reaction)
+      .value("physical_acceleration", physical_acceleration)
+      .value("physical_velocity", physical_velocity)
+      .value("physical_stamina", physical_stamina)
+      .value("physical_agility", physical_agility)
+      .value("physical_shotpower", physical_shotpower)
+      .value("technical_standingtackle", technical_standingtackle)
+      .value("technical_slidingtackle", technical_slidingtackle)
+      .value("technical_ballcontrol", technical_ballcontrol)
+      .value("technical_dribble", technical_dribble)
+      .value("technical_shortpass", technical_shortpass)
+      .value("technical_highpass", technical_highpass)
+      .value("technical_header", technical_header)
+      .value("technical_shot", technical_shot)
+      .value("technical_volley", technical_volley)
+      .value("mental_calmness", mental_calmness)
+      .value("mental_workrate", mental_workrate)
+      .value("mental_resilience", mental_resilience)
+      .value("mental_defensivepositioning", mental_defensivepositioning)
+      .value("mental_offensivepositioning", mental_offensivepositioning)
+      .value("mental_vision", mental_vision);
 
   enum_<e_PlayerRole>("e_PlayerRole")
       .value("e_PlayerRole_GK", e_PlayerRole::e_PlayerRole_GK)

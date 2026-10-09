@@ -27,5 +27,7 @@ EXPOSED_OBSERVATIONS = frozenset({
     'left_team_tired_factor', 'left_team_yellow_card', 'left_team_active',
     'left_team_roles', 'right_team', 'right_team_direction',
     'right_team_tired_factor', 'right_team_yellow_card', 'right_team_active',
-    'right_team_roles', 'score', 'steps_left', 'game_mode'
+    'right_team_roles', 'score', 'steps_left', 'game_mode',
+    # rl_project P1: per-player stats/height/foot (football_env_core.PLAYER_ATTRIBUTE_NAMES)
+    'left_team_attributes', 'right_team_attributes'
 })

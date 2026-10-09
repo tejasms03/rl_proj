@@ -48,6 +48,20 @@ except ImportError:
 
 
 
+
+# rl_project P1: columns of the *_team_attributes observation.
+PLAYER_ATTRIBUTE_NAMES = tuple(
+    name for name, _ in sorted(libgame.e_PlayerStat.names.items(),
+                               key=lambda item: int(item[1]))) + (
+                                   'height', 'preferred_foot')
+
+
+def _attribute_rows(flat):
+  rows = np.array(flat, dtype=np.float32).reshape(-1, len(PLAYER_ATTRIBUTE_NAMES))
+  rows.setflags(write=False)
+  return rows
+
+
 class EnvState(object):
 
   def __init__(self):
@@ -80,6 +94,7 @@ class FootballEnvCore(object):
     return env
 
   def _reset(self, animations, inc):
+    self._player_attributes = None  # rl_project P1: refetched per episode
     global _unused_engines
     global _unused_rendering_engine
     assert (self._env.state == GameState.game_created or
@@ -89,6 +104,7 @@ class FootballEnvCore(object):
     self._state = EnvState()
     # Variables being re-computed upon set_state call, no need to snapshot.
     self._observation = None
+    self._player_attributes = None
     # Not snapshoted variables.
     self._steps_time = 0
     self._step = 0
@@ -305,6 +321,16 @@ class FootballEnvCore(object):
 
     self._convert_players_observation(info.left_team, 'left_team', result)
     self._convert_players_observation(info.right_team, 'right_team', result)
+    # rl_project P1: per-player attributes, one row per player in the same
+    # order as left_team/right_team: PLAYER_ATTRIBUTE_NAMES columns.
+    if (self._player_attributes is None or
+        len(self._player_attributes[0]) != len(result['left_team']) or
+        len(self._player_attributes[1]) != len(result['right_team'])):
+      self._player_attributes = tuple(
+          _attribute_rows(self._env.get_player_attributes(left))
+          for left in (True, False))
+    result['left_team_attributes'] = self._player_attributes[0]
+    result['right_team_attributes'] = self._player_attributes[1]
     result['left_agent_sticky_actions'] = []
     result['left_agent_controlled_player'] = []
     result['right_agent_sticky_actions'] = []

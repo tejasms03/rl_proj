@@ -62,6 +62,10 @@ class PlayerData {
 
     std::string GetHairColor() const { return hairColor; }
     float GetHeight() const { return height; }
+    int GetPreferredFoot() const { return preferredFoot; }
+
+    // rl_project P1: replace profile values with the scenario's overrides.
+    void ApplyOverrides(const FormationEntry& entry);
 
   private:
     void UpdateValues();
@@ -73,6 +77,7 @@ class PlayerData {
     std::string hairStyle;
     std::string hairColor;
     float height = 0.0f;
+    int preferredFoot = 0;
     std::string firstName;
     std::string lastName;
 };

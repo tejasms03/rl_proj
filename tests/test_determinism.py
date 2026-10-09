@@ -8,6 +8,13 @@ from grf_tools.trace import digest_obs, first_divergence, make_env, run_trace
 # Extended with every patch switch turned on as patches land.
 CONFIGS = {
     "upstream": {},
+    "p1_attributes": {
+        "player_overrides": {
+            "left": {"*": {"stats": {"physical_velocity": 0.9, "technical_shot": 0.8},
+                           "height": 1.9, "preferred_foot": "left"}},
+            "right": {"*": {"stats": {"mental_defensivepositioning": 0.2}}},
+        }
+    },
 }
 
 
@@ -55,3 +62,13 @@ def test_mixing_tick_rates_in_one_process_is_refused():
     run_trace("academy_empty_goal_close", seed=1, max_steps=2)
     with pytest.raises(RuntimeError, match="physics_steps_per_frame"):
         make_env("academy_empty_goal_close", seed=1, config={"physics_steps_per_frame": 1})
+
+
+def test_patch_configs_actually_change_the_game():
+    # Otherwise the determinism checks above would only re-test upstream.
+    base = run_trace("11_vs_11_stochastic", seed=11, max_steps=600)
+    for name, config in CONFIGS.items():
+        if name == "upstream":
+            continue
+        patched = run_trace("11_vs_11_stochastic", seed=11, max_steps=600, config=config)
+        assert first_divergence(base.digests, patched.digests) is not None, name

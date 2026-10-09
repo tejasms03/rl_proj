@@ -256,6 +256,9 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       formation[x].lazy = f[x].lazy;
       formation[x].role = f[x].role;
       formation[x].controllable = f[x].controllable;
+      formation[x].stat_overrides = f[x].stat_overrides;
+      formation[x].height = f[x].height;
+      formation[x].preferred_foot = f[x].preferred_foot;
     }
   }
 
@@ -286,6 +289,10 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
   playerData.push_back(new PlayerData(391, teamDatabaseID == 3));
   playerData.push_back(new PlayerData(264, teamDatabaseID == 3));
   playerData.resize(player_count);
+  for (int x = 0; x < player_count; x++) {
+    DO_VALIDATION;
+    playerData[x]->ApplyOverrides(formation[x]);
+  }
 }
 
 TeamData::~TeamData() {

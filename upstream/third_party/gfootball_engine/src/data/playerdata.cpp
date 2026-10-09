@@ -539,6 +539,18 @@ PlayerData::PlayerData() {
   UpdateValues();
 }
 
+void PlayerData::ApplyOverrides(const FormationEntry& entry) {
+  DO_VALIDATION;
+  for (int stat = 0; stat < player_stat_max; stat++) {
+    DO_VALIDATION;
+    float value = entry.GetStatOverride(stat);
+    if (value >= 0.0f) stats.Set(PlayerStat(stat), clamp(value, 0.01f, 1.0f));
+  }
+  if (entry.height > 0.0f) height = entry.height;
+  preferredFoot = entry.preferred_foot;
+  UpdateValues();
+}
+
 void PlayerData::UpdateValues() {
   DO_VALIDATION;
   physical_velocity = GetStat(PlayerStat::physical_velocity);

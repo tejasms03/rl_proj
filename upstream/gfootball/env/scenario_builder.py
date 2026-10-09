@@ -30,6 +30,30 @@ Player = libgame.FormationEntry
 Role = libgame.e_PlayerRole
 Team = libgame.e_Team
 
+# rl_project P1: names accepted in AddPlayer(stats={...}).
+PLAYER_STATS = {name: int(value) for name, value in libgame.e_PlayerStat.names.items()}
+PREFERRED_FOOT = {None: 0, 'right': 1, 'left': 2}
+
+
+def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
+  """rl_project P1: validate and store per-player overrides on an entry."""
+  for name, value in (stats or {}).items():
+    if name not in PLAYER_STATS:
+      raise ValueError('Unknown player stat %r; expected one of %s' %
+                       (name, sorted(PLAYER_STATS)))
+    if not 0.0 <= value <= 1.0:
+      raise ValueError('Stat %s=%r is outside [0, 1]' % (name, value))
+    player.set_stat(PLAYER_STATS[name], float(value))
+  if height is not None:
+    if not 1.4 <= height <= 2.2:
+      raise ValueError('height=%r m is outside [1.4, 2.2]' % (height,))
+    player.height = float(height)
+  if preferred_foot not in PREFERRED_FOOT:
+    raise ValueError('preferred_foot must be one of %s' %
+                     (sorted(k for k in PREFERRED_FOOT if k),))
+  if preferred_foot is not None:
+    player.preferred_foot = PREFERRED_FOOT[preferred_foot]
+
 FLAGS = flags.FLAGS
 
 
@@ -65,7 +89,36 @@ class Scenario(object):
     self._FakePlayersForEmptyTeam(self._scenario_cfg.left_team)
     self.SetTeam(libgame.e_Team.e_Right)
     self._FakePlayersForEmptyTeam(self._scenario_cfg.right_team)
+    self._ApplyPlayerOverrides()
     self._BuildScenarioConfig()
+
+  def _ApplyPlayerOverrides(self):
+    """rl_project P1: apply the `player_overrides` env option to any scenario.
+
+    Format: {'left' | 'right': {slot | '*': {'stats': {...}, 'height': m,
+    'preferred_foot': 'left' | 'right'}}}, where slot is the player's index in
+    the order the scenario added it and '*' means every player on that side.
+    """
+    overrides = (self._config['player_overrides']
+                 if 'player_overrides' in self._config else None)
+    if not overrides:
+      return
+    teams = {'left': self._scenario_cfg.left_team,
+             'right': self._scenario_cfg.right_team}
+    unknown = set(overrides) - set(teams)
+    if unknown:
+      raise ValueError('player_overrides sides must be left/right, got %s' %
+                       sorted(unknown))
+    for side, slots in overrides.items():
+      team = teams[side]
+      for slot, spec in slots.items():
+        indices = range(len(team)) if slot == '*' else [int(slot)]
+        for i in indices:
+          if not 0 <= i < len(team):
+            raise ValueError('player_overrides: %s team has no slot %d' % (side, i))
+          entry = team[i]
+          _SetPlayerAttributes(entry, **spec)
+          team[i] = entry
 
   def _FakePlayersForEmptyTeam(self, team):
     if len(team) == 0:
@@ -96,7 +149,8 @@ class Scenario(object):
   def SetTeam(self, team):
     self._active_team = team
 
-  def AddPlayer(self, x, y, role, lazy=False, controllable=True):
+  def AddPlayer(self, x, y, role, lazy=False, controllable=True, stats=None,
+                height=None, preferred_foot=None):
     """Build player for the current scenario.
 
     Args:
@@ -105,8 +159,13 @@ class Scenario(object):
       role: Player's role in the game (goal keeper etc.).
       lazy: Computer doesn't perform any automatic actions for lazy player.
       controllable: Whether player can be controlled.
+      stats: Optional {stat name: value in [0, 1]} overriding the built-in
+        profile, e.g. {'physical_velocity': 0.9}. Names: PLAYER_STATS.
+      height: Optional height in metres overriding the built-in profile.
+      preferred_foot: Optional 'right' or 'left'; None leaves it unspecified.
     """
     player = Player(x, y, role, lazy, controllable)
+    _SetPlayerAttributes(player, stats, height, preferred_foot)
     if self._active_team == Team.e_Left:
       self._scenario_cfg.left_team.append(player)
     else:
