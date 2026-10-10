@@ -8,8 +8,8 @@
 You control the active player (switches automatically, or L1); the AI plays
 everyone else. Analog movement, input read 50x a second. FIFA-style layout,
 hold kicks to charge power (you can aim while charging):
-  X short pass / pressure     O shot / slide tackle
-  [] lofted pass / team press /\\ through ball / keeper rush
+  X short pass / teammate press   O shot / tackle (hold: chase and tackle)
+  [] lofted pass / slide tackle  /\\ through ball / keeper rush
   R1 curl shot   L3 chip   R3 driven long ball   L1 switch
   R2 sprint      L2 close control (dribble)    left stick move
 """

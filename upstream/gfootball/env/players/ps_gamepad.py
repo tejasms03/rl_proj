@@ -29,11 +29,13 @@ KICKS = {
     'l3': A.action_chip,
     'r3': A.action_long_pass,
 }
-# Without the ball: pressed / released like normal buttons.
+# Without the ball (FIFA layout). GRF has no standing-tackle button: a
+# defender near the ball tackles automatically, and holding "pressure" makes
+# him chase the ball and tackle by any means, so that is the tackle button.
 DEFENDING = {
-    'cross': A.action_pressure,
-    'circle': A.action_sliding,
-    'square': A.action_team_pressure,
+    'circle': A.action_pressure,       # hold: chase and tackle
+    'square': A.action_sliding,        # slide tackle
+    'cross': A.action_team_pressure,   # hold: a teammate presses too
     'triangle': A.action_keeper_rush,
 }
 TOGGLES = {'l1': A.action_switch}
