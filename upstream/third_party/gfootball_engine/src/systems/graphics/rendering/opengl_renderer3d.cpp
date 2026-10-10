@@ -82,6 +82,9 @@ void OpenGLRenderer3D::SwapBuffers() {
   last_screen_.resize(context_width * context_height * 3);
   if (window) {
     SDL_GL_SwapWindow(window);
+    // rl_project: macOS only shows a window's content if the process handles
+    // its window events; without this the live window stays black.
+    SDL_PumpEvents();
   }
   mapping.glReadPixels(0, 0, context_width, context_height, GL_RGB, GL_UNSIGNED_BYTE,
                        &last_screen_[0]);
