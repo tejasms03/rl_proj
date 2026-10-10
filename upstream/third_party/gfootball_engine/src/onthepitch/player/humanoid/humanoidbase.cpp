@@ -2332,6 +2332,9 @@ void HumanoidBase::ProcessState(EnvState *state) {
   state->process(previousPosition2D);
   state->process(interruptAnim);
   state->process(reQueueDelayFrames);
+  state->process(kickFrameDebt);
+  state->process(animFramesThisTick);
+  state->process(touchTimeScale);
   state->process(tripType);
   state->process(tripDirection);
   state->process(decayingPositionOffset);

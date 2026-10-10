@@ -384,6 +384,13 @@ class HumanoidBase {
 
     e_InterruptAnim interruptAnim;
     int reQueueDelayFrames = 0;
+    // v1.1 kick_windup_speed: fractional anim frames owed to a kick's
+    // wind-up, anim frames advanced this tick, and the touch-time scale
+    // used while choosing a kick anim.
+    float kickFrameDebt = 0.0f;
+    int animFramesThisTick = 1;
+    float touchTimeScale = 1.0f;
+    int TouchTime_ms(int animFrame) const { return int(animFrame * 10 * touchTimeScale + 0.5f); }
     int tripType = 0;
     Vector3 tripDirection;
 

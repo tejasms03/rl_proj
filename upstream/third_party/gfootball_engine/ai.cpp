@@ -232,6 +232,7 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("pass_direction_assist", &ScenarioConfig::pass_direction_assist)
       .def_readwrite("pass_power_assist", &ScenarioConfig::pass_power_assist)
       .def_readwrite("situational_accuracy", &ScenarioConfig::situational_accuracy)
+      .def_readwrite("kick_windup_speed", &ScenarioConfig::kick_windup_speed)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
                      &ScenarioConfig::end_episode_on_score)

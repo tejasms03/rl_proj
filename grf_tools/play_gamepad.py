@@ -70,6 +70,8 @@ def main() -> None:
     parser.add_argument("--power-assist", type=float, default=0.5,
                         help="0 = your charge sets the distance, 1 = fully automatic")
     parser.add_argument("--upstream", action="store_true", help="original GRF physics")
+    parser.add_argument("--windup", type=float, default=2.0,
+                        help="kick wind-up speed (v1.1): 1 = original GRF timing, 2 = twice as snappy")
     parser.add_argument("--speed", type=float, default=1.0,
                         help="playback speed: 1.0 = real time, 0.8 = 20%% slower "
                              "(display only; physics unchanged)")
@@ -94,7 +96,8 @@ def main() -> None:
     if args.no_magnet:
         values["use_magnet"] = False
     if not args.upstream:
-        values.update(V1, pitch_condition=args.pitch, pass_power_assist=args.power_assist)
+        values.update(V1, pitch_condition=args.pitch, pass_power_assist=args.power_assist,
+                      kick_windup_speed=args.windup)
     env = football_env.FootballEnv(gconfig.Config(values))
     env.render()
     env.reset()

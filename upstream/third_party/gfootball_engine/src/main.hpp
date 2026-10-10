@@ -160,6 +160,7 @@ struct ScenarioConfig {
     state->process(pass_direction_assist);
     state->process(pass_power_assist);
     state->process(situational_accuracy);
+    state->process(kick_windup_speed);
   }
 
   void ProcessState(EnvState* state) {
@@ -226,6 +227,9 @@ struct ScenarioConfig {
   // P4: kick accuracy depends on pressure, composure and weak foot; first
   // touch on incoming ball speed and ball control.
   bool situational_accuracy = false;
+  // v1.1: kick animations (passes, shots) play this much faster up to the
+  // moment the foot meets the ball; 1 = upstream timing.
+  float kick_windup_speed = 1.0f;
   int second_half = 999999999;
 
  private:

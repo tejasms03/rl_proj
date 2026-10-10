@@ -50,6 +50,12 @@ constexpr bool discardSidewaysSmuggle = false;
 constexpr float bodyRotationSmoothingFactor = 1.0f;
 constexpr float bodyRotationSmoothingMaxAngle = animSmoothing ? 0.25f * pi : 0.0f;
 constexpr int initialReQueueDelayFrames = 22;
+
+// rl_project v1.1: anims whose wind-up kick_windup_speed shortens.
+static bool IsKickFunction(e_FunctionType type) {
+  return type == e_FunctionType_ShortPass || type == e_FunctionType_LongPass ||
+         type == e_FunctionType_HighPass || type == e_FunctionType_Shot;
+}
 constexpr int minRemainingMovementReQueueFrames = 6; // after this # of frames remaining, just let anim finish; we're almost there anyway
 constexpr int minRemainingTrapReQueueFrames = 6; // after this # of frames remaining to touchframe, just let anim finish; we're almost there anyway
 constexpr int maxBallControlReQueueFrame = 8;
@@ -101,6 +107,22 @@ void Humanoid::Process() {
 
   currentAnim.frameNum++;
   previousAnim_frameNum++;
+
+  // v1.1 kick_windup_speed: play a pass/shot anim faster until its touch
+  // frame (never skipping it), so the kick comes out sooner. The anim was
+  // chosen for this (see touchTimeScale in SelectAnim).
+  animFramesThisTick = 1;
+  const float windupSpeed = GetScenarioConfig().kick_windup_speed;
+  if (windupSpeed > 1.0f && IsKickFunction(currentAnim.functionType) &&
+      currentAnim.touchFrame > 0 && currentAnim.frameNum < currentAnim.touchFrame) {
+    DO_VALIDATION;
+    kickFrameDebt += windupSpeed - 1.0f;
+    while (kickFrameDebt >= 1.0f && currentAnim.frameNum < currentAnim.touchFrame) {
+      currentAnim.frameNum++;
+      kickFrameDebt -= 1.0f;
+      animFramesThisTick++;
+    }
+  }
 
   assert(team);
   int teamID = team->GetID();
@@ -713,13 +735,18 @@ void Humanoid::Process() {
 
     // smooth version
     assert(currentAnim.touchFrame > 0.0f);
-    float value =
-        std::cos((currentAnim.frameNum / (float)(currentAnim.touchFrame + 1) -
-                  0.5f) *
-                 pi * 2.0f) +
-        1.0f;
-    // add some linearity
-    value = value * 0.1f + 0.9f;
+    // rl_project v1.1: sum the share of every anim frame advanced this tick
+    // (more than one under kick_windup_speed), so the full smuggle is
+    // applied by the touch frame.
+    float value = 0.0f;
+    for (int f = currentAnim.frameNum - animFramesThisTick + 1; f <= currentAnim.frameNum; f++) {
+      float frameValue =
+          std::cos((f / (float)(currentAnim.touchFrame + 1) - 0.5f) * pi *
+                   2.0f) +
+          1.0f;
+      // add some linearity
+      value += frameValue * 0.1f + 0.9f;
+    }
     spatialState.actionSmuggleMovement = (currentAnim.actionSmuggle / (float)(currentAnim.touchFrame + 1)) * value * 100.0f;
     currentAnim.actionSmuggleOffset += spatialState.actionSmuggleMovement / 100.0f;
 
@@ -1557,6 +1584,11 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
   int selectedAnimID = -1;
   std::vector<Vector3> positions_tmp;
   int touchFrame_tmp = -1;
+  {  // rl_project v1.1: kicks reach their touch frame sooner (see Process)
+    const float windupSpeed = GetScenarioConfig().kick_windup_speed;
+    touchTimeScale = (windupSpeed > 1.0f && IsKickFunction(command.desiredFunctionType))
+                         ? 1.0f / windupSpeed : 1.0f;
+  }
   float radiusOffset_tmp = 0.0f;
   Vector3 touchPos_tmp;
   Vector3 fullActionSmuggle_tmp;
@@ -1658,6 +1690,7 @@ bool Humanoid::SelectAnim(const PlayerCommand &command,
     currentAnim.id = selectedAnimID;
     currentAnim.functionType = command.desiredFunctionType;//StringToFunctionType(currentAnim.anim->GetVariable("type"));
     currentAnim.frameNum = 0;
+    kickFrameDebt = 0.0f;
     currentAnim.touchFrame = touchFrame_tmp;
     currentAnim.originatingInterrupt = localInterruptAnim;
     currentAnim.touchPos = touchPos_tmp;
@@ -1932,7 +1965,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
       // out of bounds?
       if (match->GetBallRetainer() != player) {
         DO_VALIDATION;
-        Vector3 absBallPos = match->GetBall()->Predict(animTouchFrame * 10);
+        Vector3 absBallPos = match->GetBall()->Predict(TouchTime_ms(animTouchFrame));
         if (fabs(absBallPos.coords[0]) > pitchHalfW + lineHalfW + 0.11f ||
             fabs(absBallPos.coords[1]) > pitchHalfH + lineHalfW + 0.11f) {
           DO_VALIDATION;
@@ -1946,8 +1979,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
 
       Vector3 ballPos, ballMovement;
       auto mentalImage = match->GetMentalImage(mentalImageTime);
-      ballPos = mentalImage->GetBallPrediction(animTouchFrame * 10);
-      ballMovement = (mentalImage->GetBallPrediction(animTouchFrame * 10 + 10) - mentalImage->GetBallPrediction(animTouchFrame * 10)) * 100.0f;
+      ballPos = mentalImage->GetBallPrediction(TouchTime_ms(animTouchFrame));
+      ballMovement = (mentalImage->GetBallPrediction(TouchTime_ms(animTouchFrame) + 10) - mentalImage->GetBallPrediction(TouchTime_ms(animTouchFrame))) * 100.0f;
       ballPos = (ballPos - spatialState.position).GetRotated2D(-spatialState.angle);
       ballMovement = ballMovement.GetRotated2D(-spatialState.angle);
 
@@ -2078,7 +2111,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
           FFO.Rotate2D(FixAngle(touchMovement.GetNormalized(Vector3(0, -1, 0)).GetAngle2D()));
         }
         // just touched ball
-        float lastTouchBias = curve(player->GetLastTouchBias(600, match->GetActualTime_ms() + animTouchFrame * 10), 1.0f);
+        float lastTouchBias = curve(player->GetLastTouchBias(600, match->GetActualTime_ms() + TouchTime_ms(animTouchFrame)), 1.0f);
         if (lastTouchBias > 0.0f) {
           DO_VALIDATION;
           float factor = 1.0f - lastTouchBias * 0.97f * (1.0f - player->GetStat(technical_ballcontrol) * 0.1f);
@@ -2111,7 +2144,7 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
   if (found) {
     DO_VALIDATION;
     auto currentMentalImage = match->GetMentalImage(mentalImageTime);
-    touchPos_ret = currentMentalImage->GetBallPrediction(animTouchFrame_ret * 10);
+    touchPos_ret = currentMentalImage->GetBallPrediction(TouchTime_ms(animTouchFrame_ret));
 
     fullActionSmuggle_ret = bestActionSmuggleVec2D.GetRotated2D(spatialState.angle);
     actionSmuggle_ret = fullActionSmuggle_ret;
