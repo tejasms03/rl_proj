@@ -11,6 +11,7 @@ Close the window or press Ctrl-C to stop.
 from __future__ import annotations
 
 import argparse
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -34,6 +35,8 @@ def main() -> None:
     parser.add_argument("--pitch", default="normal", choices=["normal", "dry", "wet", "long_grass"])
     parser.add_argument("--upstream", action="store_true", help="original GRF, no patches")
     parser.add_argument("--fast", action="store_true", help="run as fast as possible")
+    parser.add_argument("--speed", type=float, default=1.0,
+                        help="playback speed (1.0 = real time; display only)")
     args = parser.parse_args()
 
     config = {"action_set": "v2", "real_time": not args.fast}
@@ -44,11 +47,20 @@ def main() -> None:
     builtin_ai = [a._name for a in football_action_set.get_action_set(
         {"action_set": "v2"})].index("builtin_ai")
     try:
+        step_seconds = 0.1 / max(args.speed, 0.1)  # 10 ticks of 10 ms per step
         for episode in range(args.episodes):
             env.reset()
             done = False
+            next_step = time.perf_counter()
             while not done:
                 obs, _, done, _ = env.step(builtin_ai)
+                if not args.fast:  # real_time alone never waits (see play_gamepad)
+                    next_step += step_seconds
+                    delay = next_step - time.perf_counter()
+                    if delay > 0:
+                        time.sleep(delay)
+                    else:
+                        next_step = time.perf_counter()
             print(f"episode {episode + 1}: score {obs[0]['score']}", flush=True)
     except KeyboardInterrupt:
         pass

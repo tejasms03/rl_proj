@@ -18,6 +18,7 @@ second. FIFA-style layout; hold a kick to charge power (aim while charging):
 from __future__ import annotations
 
 import argparse
+import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -68,6 +69,9 @@ def main() -> None:
     parser.add_argument("--power-assist", type=float, default=0.5,
                         help="0 = your charge sets the distance, 1 = fully automatic")
     parser.add_argument("--upstream", action="store_true", help="original GRF physics")
+    parser.add_argument("--speed", type=float, default=1.0,
+                        help="playback speed: 1.0 = real time, 0.8 = 20%% slower "
+                             "(display only; physics unchanged)")
     parser.add_argument("--no-magnet", action="store_true",
                         help="no assisted steering toward the ball: pure stick control")
     parser.add_argument("--test", action="store_true", help="check controller buttons")
@@ -92,11 +96,22 @@ def main() -> None:
     env = football_env.FootballEnv(gconfig.Config(values))
     env.render()
     env.reset()
+    # GRF's real_time mode only adjusts how many frames it draws and never
+    # waits, so on a fast Mac the game runs faster than real time. Pace it:
+    # each step is physics_steps_per_frame ticks of 10 ms game time.
+    step_seconds = values["physics_steps_per_frame"] * 0.01 / max(args.speed, 0.1)
+    next_step = time.perf_counter()
     try:
         while True:
             _, _, done, _ = env.step([])
             if done:
                 env.reset()
+            next_step += step_seconds
+            delay = next_step - time.perf_counter()
+            if delay > 0:
+                time.sleep(delay)
+            else:
+                next_step = time.perf_counter()  # running behind: don't catch up
     except KeyboardInterrupt:
         pass
     finally:
