@@ -40,6 +40,16 @@ DEFENDING = {
     'triangle': A.action_keeper_rush,
 }
 TOGGLES = {'l1': A.action_switch}
+# Three states decide what the face buttons do (see _state):
+#   ATTACK    we own the ball, or it is loose          -> kicks
+#   CONTESTED opponents touch it, but it is a duel at   -> kicks (shoot/pass
+#             your feet (you are about as close as the     through the
+#             nearest opponent)                            challenge)
+#   DEFEND    otherwise                                 -> DEFENDING buttons
+ATTACK, CONTESTED, DEFEND = 'attack', 'contested', 'defend'
+CONTEST_RADIUS_M = 2.0  # ball within this distance of you
+CONTEST_MARGIN_M = 0.5  # and you no further than nearest opponent + this
+_METRES = (54.4, -83.6)  # observation units -> metres (x, y)
 TRIGGERS = {'r2': A.action_sprint, 'l2': A.action_dribble}
 
 
@@ -66,11 +76,21 @@ class Player(gamepad.Player):
     index = PS_AXES[name]
     return self._joystick.get_axis(index) if index < self._joystick.get_numaxes() else -1.0
 
-  def _attacking(self, observation):
-    # Kick buttons work unless the opponents have the ball: ownership blinks
-    # to "nobody" between dribble touches and for incoming balls, and the
-    # engine queues a kick until the player reaches the ball (first time).
-    return observation['ball_owned_team'] != 1
+  def _state(self, observation):
+    # Ownership blinks to "nobody" between dribble touches and for incoming
+    # balls (the engine queues a kick until the player reaches the ball), and
+    # to the opponents whenever a defender pokes at it in a duel.
+    if observation['ball_owned_team'] != 1:
+      return ATTACK
+    def dist(position):
+      return (((position[0] - ball[0]) * _METRES[0]) ** 2 +
+              ((position[1] - ball[1]) * _METRES[1]) ** 2) ** 0.5
+    ball = observation['ball']
+    mine = dist(observation['left_team'][observation['active']])
+    theirs = min(dist(p) for p in observation['right_team'])
+    if mine < CONTEST_RADIUS_M and mine <= theirs + CONTEST_MARGIN_M:
+      return CONTESTED
+    return DEFEND
 
   def _toggle(self, action, pressed):
     if not action.is_in_actionset(self._env_config):
@@ -87,9 +107,8 @@ class Player(gamepad.Player):
     # still count; the current state of each button is read below.
     self._tapped = {event.button for event in event_queue.get('gamepad', self._index)
                     if event.type == pygame.JOYBUTTONDOWN}
-    with_ball = self._attacking(observation)
-
-    action = self._button_action(with_ball)
+    self.state = self._state(observation)
+    action = self._button_action(self.state != DEFEND)
     x, y = self._axis('left_x'), self._axis('left_y')
     x += float(bool(self._button('right'))) - float(bool(self._button('left')))
     y += float(bool(self._button('down'))) - float(bool(self._button('up')))
@@ -108,12 +127,12 @@ class Player(gamepad.Player):
             action.is_in_actionset(self._env_config)):
           return action
 
-    # 3. Defensive buttons, switch, sprint and dribble triggers.
-    if not with_ball:
-      for name, action in DEFENDING.items():
-        result = self._toggle(action, self._button(name))
-        if result:
-          return result
+    # 2. Defensive buttons; off the ball release any still held (else a
+    #    pressure held while winning the ball stays on during the attack).
+    for name, action in DEFENDING.items():
+      result = self._toggle(action, self._button(name) and not with_ball)
+      if result:
+        return result
     if not with_ball:  # L1 is a kick modifier when attacking
       for name, action in TOGGLES.items():
         result = self._toggle(action, self._button(name))
