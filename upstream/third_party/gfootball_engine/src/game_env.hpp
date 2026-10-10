@@ -56,6 +56,8 @@ struct GameEnv {
   bool sticky_action_state(int action, bool left_team, int player);
   void action(int action, bool left_team, int player);
   void set_kick_power(bool left_team, int player, float power);
+  // rl_project: analog movement direction (any angle; 0, 0 = no input).
+  void set_direction(bool left_team, int player, float x, float y);
   void reset(ScenarioConfig& game_config, bool init_animation);
   void render(bool swap_buffer = true);
   std::string get_state(const std::string& pickle);

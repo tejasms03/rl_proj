@@ -6,7 +6,8 @@
     ./play.sh --test                           # show which buttons your pad reports
 
 You control the active player (switches automatically, or L1); the AI plays
-everyone else. FIFA-style layout, hold kicks to charge power:
+everyone else. Analog movement, input read 50x a second. FIFA-style layout,
+hold kicks to charge power (you can aim while charging):
   X short pass / pressure     O shot / slide tackle
   [] lofted pass / team press /\\ through ball / keeper rush
   R1 curl shot   L3 chip   R3 driven long ball   L1 switch
@@ -66,6 +67,8 @@ def main() -> None:
     parser.add_argument("--power-assist", type=float, default=0.5,
                         help="0 = your charge sets the distance, 1 = fully automatic")
     parser.add_argument("--upstream", action="store_true", help="original GRF physics")
+    parser.add_argument("--no-magnet", action="store_true",
+                        help="no assisted steering toward the ball: pure stick control")
     parser.add_argument("--test", action="store_true", help="check controller buttons")
     args = parser.parse_args()
     if args.test:
@@ -77,7 +80,12 @@ def main() -> None:
         "players": ["ps_gamepad:left_players=1"],
         "real_time": True,
         "level": args.level,
+        # Read the controller 50 times a second (default 10); physics is
+        # unchanged, the engine still runs at 100 ticks per second.
+        "physics_steps_per_frame": 2,
     }
+    if args.no_magnet:
+        values["use_magnet"] = False
     if not args.upstream:
         values.update(V1, pitch_condition=args.pitch, pass_power_assist=args.power_assist)
     env = football_env.FootballEnv(gconfig.Config(values))

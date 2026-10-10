@@ -41,8 +41,8 @@ TRIGGERS = {'r2': A.action_sprint, 'l2': A.action_dribble}
 
 
 class Player(gamepad.Player):
-  """FIFA-style PlayStation controller; one action per step, in priority:
-  held kick, direction change, other button changes."""
+  """FIFA-style PlayStation controller. Each step: the exact stick direction
+  plus one button action (held kick first, then other button changes)."""
 
   def __init__(self, player_config, env_config):
     # GRF numbers players per type name; the base class reads 'player_gamepad'.
@@ -50,10 +50,13 @@ class Player(gamepad.Player):
       player_config['player_gamepad'] = player_config['player_ps_gamepad']
     gamepad.Player.__init__(self, player_config, env_config)
     self._held = {}  # action -> currently held (as last sent)
-    self._direction = A.action_idle
+    self._tapped = set()  # buttons pressed since the last step (even if released)
 
   def _button(self, name):
+    """Held now, or pressed at any moment since the last step (quick taps)."""
     index = PS_BUTTONS[name]
+    if index in self._tapped:
+      return True
     return index < self._joystick.get_numbuttons() and self._joystick.get_button(index)
 
   def _axis(self, name):
@@ -75,37 +78,29 @@ class Player(gamepad.Player):
   def take_action(self, observations):
     assert len(observations) == 1, 'Gamepad controls one player'
     observation = observations[0]
-    for _ in event_queue.get('gamepad', self._index):
-      pass  # drain events; we read the current state below
+    # Remember every press since the last step, so taps shorter than a step
+    # still count; the current state of each button is read below.
+    self._tapped = {event.button for event in event_queue.get('gamepad', self._index)
+                    if event.type == pygame.JOYBUTTONDOWN}
     with_ball = self._has_ball(observation)
 
+    action = self._button_action(with_ball)
+    x, y = self._axis('left_x'), self._axis('left_y')
+    x += float(bool(self._button('right'))) - float(bool(self._button('left')))
+    y += float(bool(self._button('down'))) - float(bool(self._button('up')))
+    length = (x * x + y * y) ** 0.5
+    # Exact stick angle (or D-pad), sent every step alongside the button
+    # action so you can aim while charging. Dead zone 0.3; full speed at any
+    # tilt (sprint is R2). Stick y points down; the engine's +y is up.
+    dx, dy = (x / length, -y / length) if length > 0.3 else (0.0, 0.0)
+    return (action, -1.0, dx, dy)
+
+  def _button_action(self, with_ball):
     # 1. Kicks (with the ball): keep pressing while held to charge power.
     if with_ball:
       for name, action in KICKS.items():
         if self._button(name) and action.is_in_actionset(self._env_config):
           return action
-
-    # 2. Direction from the left stick (8-way).
-    x, y = self._axis('left_x'), self._axis('left_y')
-    # Left stick or D-pad.
-    left = x < -0.5 or bool(self._button('left'))
-    right = x > 0.5 or bool(self._button('right'))
-    top = y < -0.5 or bool(self._button('up'))
-    bottom = y > 0.5 or bool(self._button('down'))
-    direction = A.action_idle
-    for action, on in ((A.action_top_left, top and left), (A.action_top_right, top and right),
-                       (A.action_bottom_left, bottom and left),
-                       (A.action_bottom_right, bottom and right)):
-      if on:
-        direction = action
-    if direction == A.action_idle:
-      for action, on in ((A.action_right, right), (A.action_left, left),
-                         (A.action_top, top), (A.action_bottom, bottom)):
-        if on:
-          direction = action
-    if direction != self._direction:
-      self._direction = direction
-      return A.action_release_direction if direction == A.action_idle else direction
 
     # 3. Defensive buttons, switch, sprint and dribble triggers.
     if not with_ball:

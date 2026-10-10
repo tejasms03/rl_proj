@@ -176,6 +176,10 @@ class FootballEnvCore(object):
     # step or two after the button press; plain actions leave it unchanged
     # (never set = hold-to-charge gauge).
     powers = [float(a[1]) if isinstance(a, (tuple, list)) else -1.0 for a in action]
+    # (action, power, dx, dy): an analog movement direction set every step,
+    # independent of the button action (human gamepad play).
+    analog = [(float(a[2]), float(a[3])) if isinstance(a, (tuple, list)) and len(a) == 4
+              else None for a in action]
     action = [a[0] if isinstance(a, (tuple, list)) else a for a in action]
     # Arrays of (action, power) rows arrive as floats.
     action = [int(a) if isinstance(a, (float, np.floating)) else a for a in action]
@@ -214,6 +218,8 @@ class FootballEnvCore(object):
         if powers[action_index - 1] >= 0:
           self._env.set_kick_power(left_team, i, powers[action_index - 1])
         self._env.perform_action(player_action._backend_action, left_team, i)
+        if analog[action_index - 1] is not None:
+          self._env.set_direction(left_team, i, *analog[action_index - 1])
     while True:
       enter_time = timeit.default_timer()
       self._env.step()
