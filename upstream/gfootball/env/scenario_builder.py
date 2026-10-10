@@ -103,7 +103,17 @@ class Scenario(object):
     self._FakePlayersForEmptyTeam(self._scenario_cfg.right_team)
     self._ApplyPlayerOverrides()
     self._ApplyPatchSwitches()
+    self._KeepMatchLength()
     self._BuildScenarioConfig()
+
+  def _KeepMatchLength(self):
+    """rl_project: with `keep_match_length`, scenarios' game_duration (written
+    for the default 10 physics ticks per step) keeps its length in game time
+    at other physics_steps_per_frame, e.g. a full match at 50 Hz input."""
+    if 'keep_match_length' in self._config and self._config['keep_match_length']:
+      ticks = self._config['physics_steps_per_frame']
+      self._scenario_cfg.game_duration = int(
+          round(self._scenario_cfg.game_duration * 10 / ticks))
 
   def _ApplyPatchSwitches(self):
     for name in PATCH_SWITCHES:

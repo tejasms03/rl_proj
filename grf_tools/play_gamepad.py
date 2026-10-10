@@ -89,6 +89,7 @@ def main() -> None:
         # Read the controller 50 times a second (default 10); physics is
         # unchanged, the engine still runs at 100 ticks per second.
         "physics_steps_per_frame": 2,
+        "keep_match_length": True,  # full match, not 1/5 of one at 50 Hz
     }
     if args.no_magnet:
         values["use_magnet"] = False
