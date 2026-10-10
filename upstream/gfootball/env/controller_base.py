@@ -109,4 +109,8 @@ class Controller(player_base.PlayerBase):
                        active_actions)
     self._check_action(football_action_set.action_sprint, active_actions)
     self._check_action(football_action_set.action_dribble, active_actions)
+    # rl_project P3 kicks (skipped for action sets that don't include them).
+    self._check_action(football_action_set.action_curl_shot, active_actions)
+    self._check_action(football_action_set.action_chip, active_actions)
+    self._check_action(football_action_set.action_through_ball, active_actions)
     return self._last_action
