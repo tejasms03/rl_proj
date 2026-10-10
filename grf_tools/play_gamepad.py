@@ -5,13 +5,14 @@
     ./play.sh --level academy_3_vs_1_with_keeper
     ./play.sh --test                           # show which buttons your pad reports
 
-You control the active player (switches automatically, or L1); the AI plays
-everyone else. Analog movement, input read 50x a second. FIFA-style layout,
-hold kicks to charge power (you can aim while charging):
-  X short pass / teammate press   O shot / tackle (hold: chase and tackle)
-  [] lofted pass / slide tackle  /\\ through ball / keeper rush
-  R1 curl shot   L3 chip   R3 driven long ball   L1 switch
-  R2 sprint      L2 close control (dribble)    left stick move
+You control the active player (switches automatically, or L1 when
+defending); the AI plays everyone else. Analog movement, input read 50x a
+second. FIFA-style layout; hold a kick to charge power (aim while charging):
+  attacking:  X short pass   O shot   [] lofted pass   /\\ through ball
+              R1+O curl shot  L1+O chip  R1+[] driven long ball
+  defending:  O (hold) tackle   [] slide tackle   X (hold) teammate press
+              /\\ keeper rush   L1 switch player
+  any time:   R2 sprint   L2 close control   left stick / D-pad move
 """
 
 from __future__ import annotations

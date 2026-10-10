@@ -20,15 +20,16 @@ PS_AXES = {'left_x': 0, 'left_y': 1, 'l2': 4, 'r2': 5}
 
 # Kicks: re-pressed every step while held, so the engine's power gauge
 # charges (it releases kick buttons after each step). Released = kick.
-KICKS = {
-    'cross': A.action_short_pass,
-    'circle': A.action_shot,
-    'square': A.action_high_pass,
-    'triangle': A.action_through_ball,
-    'r1': A.action_curl_shot,
-    'l3': A.action_chip,
-    'r3': A.action_long_pass,
-}
+# (button, modifier held) -> action, FIFA style; checked in this order.
+KICKS = [
+    ('circle', 'l1', A.action_chip),        # L1 + O: chip
+    ('circle', 'r1', A.action_curl_shot),   # R1 + O: finesse / curl shot
+    ('circle', None, A.action_shot),
+    ('square', 'r1', A.action_long_pass),   # R1 + []: driven long ball
+    ('square', None, A.action_high_pass),
+    ('cross', None, A.action_short_pass),
+    ('triangle', None, A.action_through_ball),
+]
 # Without the ball (FIFA layout). GRF has no standing-tackle button: a
 # defender near the ball tackles automatically, and holding "pressure" makes
 # him chase the ball and tackle by any means, so that is the tackle button.
@@ -65,9 +66,11 @@ class Player(gamepad.Player):
     index = PS_AXES[name]
     return self._joystick.get_axis(index) if index < self._joystick.get_numaxes() else -1.0
 
-  def _has_ball(self, observation):
-    return (observation['ball_owned_team'] == 0 and
-            observation['ball_owned_player'] == observation['active'])
+  def _attacking(self, observation):
+    # Kick buttons work unless the opponents have the ball: ownership blinks
+    # to "nobody" between dribble touches and for incoming balls, and the
+    # engine queues a kick until the player reaches the ball (first time).
+    return observation['ball_owned_team'] != 1
 
   def _toggle(self, action, pressed):
     if not action.is_in_actionset(self._env_config):
@@ -84,7 +87,7 @@ class Player(gamepad.Player):
     # still count; the current state of each button is read below.
     self._tapped = {event.button for event in event_queue.get('gamepad', self._index)
                     if event.type == pygame.JOYBUTTONDOWN}
-    with_ball = self._has_ball(observation)
+    with_ball = self._attacking(observation)
 
     action = self._button_action(with_ball)
     x, y = self._axis('left_x'), self._axis('left_y')
@@ -100,8 +103,9 @@ class Player(gamepad.Player):
   def _button_action(self, with_ball):
     # 1. Kicks (with the ball): keep pressing while held to charge power.
     if with_ball:
-      for name, action in KICKS.items():
-        if self._button(name) and action.is_in_actionset(self._env_config):
+      for name, modifier, action in KICKS:
+        if (self._button(name) and (modifier is None or self._button(modifier)) and
+            action.is_in_actionset(self._env_config)):
           return action
 
     # 3. Defensive buttons, switch, sprint and dribble triggers.
@@ -110,10 +114,11 @@ class Player(gamepad.Player):
         result = self._toggle(action, self._button(name))
         if result:
           return result
-    for name, action in TOGGLES.items():
-      result = self._toggle(action, self._button(name))
-      if result:
-        return result
+    if not with_ball:  # L1 is a kick modifier when attacking
+      for name, action in TOGGLES.items():
+        result = self._toggle(action, self._button(name))
+        if result:
+          return result
     for name, action in TRIGGERS.items():
       result = self._toggle(action, self._axis(name) > 0.0)
       if result:
