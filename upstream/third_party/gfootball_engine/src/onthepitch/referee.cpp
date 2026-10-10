@@ -92,6 +92,7 @@ Referee::~Referee() { DO_VALIDATION; }
 
 void Referee::Process() {
   DO_VALIDATION;
+  match->ProcessInjuryTime();  // rl_project
   if (match->IsInPlay() && !match->IsInSetPiece()) {
     DO_VALIDATION;
 
@@ -116,6 +117,7 @@ void Referee::Process() {
       foul.foulTime = 0;
       foul.hasBeenProcessed = true;
       match->SetMatchPhase(e_MatchPhase_2ndHalf);
+      match->StartSecondHalfClock();  // rl_project injury time
     }
 
     // We process corner setup in not mirrored setup.
@@ -500,6 +502,9 @@ bool Referee::CheckFoul() {
     DO_VALIDATION;
 
     match->StopPlay();
+    // rl_project injury time: fouls, cards and penalties add stoppage time.
+    match->AddStoppage(penalty ? 0.5f : 0.25f);
+    if (foul.foulType >= 2) match->AddStoppage(foul.foulType >= 3 ? 0.5f : 0.25f);
     if (!penalty) {
       DO_VALIDATION;
       buffer.desiredSetPiece = e_GameMode_FreeKick;

@@ -41,14 +41,17 @@ PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
                   'pitch_condition', 'ball_pace', 'kick_power_control',
                   'pass_direction_assist', 'pass_power_assist',
                   'situational_accuracy', 'use_magnet',
-                  'kick_windup_speed')
+                  'kick_windup_speed', 'left_team_name', 'right_team_name',
+                  'left_team_short_name', 'right_team_short_name',
+                  'injury_time')
 PITCH_CONDITIONS = {'normal': 0, 'dry': 1, 'wet': 2, 'long_grass': 3}
 BALL_PACES = {'game': 0, 'realistic': 1}
 # Switches set by name; the engine stores their index.
 NAMED_SWITCHES = {'pitch_condition': PITCH_CONDITIONS, 'ball_pace': BALL_PACES}
 
 
-def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
+def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None,
+                         name=None):
   """rl_project P1: validate and store per-player overrides on an entry."""
   for name, value in (stats or {}).items():
     if name not in PLAYER_STATS:
@@ -66,6 +69,8 @@ def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None):
                      (sorted(k for k in PREFERRED_FOOT if k),))
   if preferred_foot is not None:
     player.preferred_foot = PREFERRED_FOOT[preferred_foot]
+  if name is not None:
+    player.name = str(name)
 
 FLAGS = flags.FLAGS
 
@@ -132,7 +137,7 @@ class Scenario(object):
     """rl_project P1: apply the `player_overrides` env option to any scenario.
 
     Format: {'left' | 'right': {slot | '*': {'stats': {...}, 'height': m,
-    'preferred_foot': 'left' | 'right'}}}, where slot is the player's index in
+    'preferred_foot': 'left' | 'right', 'name': str}}}, where slot is the player's index in
     the order the scenario added it and '*' means every player on that side.
     """
     overrides = (self._config['player_overrides']
@@ -186,7 +191,7 @@ class Scenario(object):
     self._active_team = team
 
   def AddPlayer(self, x, y, role, lazy=False, controllable=True, stats=None,
-                height=None, preferred_foot=None):
+                height=None, preferred_foot=None, name=None):
     """Build player for the current scenario.
 
     Args:
@@ -199,9 +204,10 @@ class Scenario(object):
         profile, e.g. {'physical_velocity': 0.9}. Names: PLAYER_STATS.
       height: Optional height in metres overriding the built-in profile.
       preferred_foot: Optional 'right' or 'left'; None leaves it unspecified.
+      name: Optional display name (shown above the player and in messages).
     """
     player = Player(x, y, role, lazy, controllable)
-    _SetPlayerAttributes(player, stats, height, preferred_foot)
+    _SetPlayerAttributes(player, stats, height, preferred_foot, name)
     if self._active_team == Team.e_Left:
       self._scenario_cfg.left_team.append(player)
     else:

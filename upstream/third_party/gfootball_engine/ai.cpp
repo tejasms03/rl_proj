@@ -233,6 +233,11 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("pass_power_assist", &ScenarioConfig::pass_power_assist)
       .def_readwrite("situational_accuracy", &ScenarioConfig::situational_accuracy)
       .def_readwrite("kick_windup_speed", &ScenarioConfig::kick_windup_speed)
+      .def_readwrite("injury_time", &ScenarioConfig::injury_time)
+      .def_readwrite("left_team_name", &ScenarioConfig::left_team_name)
+      .def_readwrite("right_team_name", &ScenarioConfig::right_team_name)
+      .def_readwrite("left_team_short_name", &ScenarioConfig::left_team_short_name)
+      .def_readwrite("right_team_short_name", &ScenarioConfig::right_team_short_name)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
                      &ScenarioConfig::end_episode_on_score)
@@ -262,6 +267,7 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("controllable", &FormationEntry::controllable)
       .def_readwrite("height", &FormationEntry::height)
       .def_readwrite("preferred_foot", &FormationEntry::preferred_foot)
+      .def_readwrite("name", &FormationEntry::name)
       .def("set_stat", &FormationEntry::SetStatOverride)
       .def("get_stat", &FormationEntry::GetStatOverride);
 

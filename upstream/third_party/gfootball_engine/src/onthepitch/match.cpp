@@ -696,6 +696,8 @@ void Match::ProcessState(EnvState* state) {
   }
   ball->ProcessState(state);
   state->process(matchTime_ms);
+  state->process(stoppageMinutes);
+  state->process(addedMinutes);
   state->process(actualTime_ms);
   state->process(goalScoredTimer);
   state->process(matchPhase);
@@ -988,6 +990,7 @@ bool Match::Process() {
                               matchData->GetGoalCount(team) + 1);
       scoreboard->SetGoalCount(team, matchData->GetGoalCount(team));
       goalScored = true;
+      AddStoppage(0.5f);  // rl_project injury time
       lastGoalTeam = teams[team];
       teams[team]->GetController()->UpdateTactics();
     }
@@ -1148,10 +1151,61 @@ void Match::Put() {
   timeStr += ":";
   if (seconds < 10) timeStr += "0";
   timeStr += int_to_str(seconds);
+  if (addedMinutes > 0) timeStr += " +" + int_to_str(addedMinutes);
   scoreboard->SetTimeStr(timeStr);
   if (messageCaptionRemoveTime_ms <= actualTime_ms) messageCaption->Hide();
   radar->Put();
   UpdateGoalNetting(GetBall()->BallTouchesNet());
+}
+
+namespace {
+const unsigned long kHalf_ms = 45 * 60000;  // match-clock length of a half
+
+// Environment steps covering clock_ms of match clock.
+int StepsForClock(unsigned long clock_ms, float matchDurationFactor) {
+  const float step_ms = 10.0f * GetGameConfig().physics_steps_per_frame;
+  return int(std::ceil(clock_ms * matchDurationFactor / step_ms));
+}
+}  // namespace
+
+void Match::ProcessInjuryTime() {
+  DO_VALIDATION;
+  ScenarioConfig& scenario = GetScenarioConfig();
+  if (!scenario.injury_time) return;
+  const bool first = matchPhase == e_MatchPhase_1stHalf;
+  if (!first && matchPhase != e_MatchPhase_2ndHalf) return;
+  if (first && addedMinutes == 0 && scenario.second_half < 999999999 &&
+      matchTime_ms < kHalf_ms) {
+    scenario.second_half = 999999999;  // no half time before 45:00
+  }
+  const unsigned long end_ms = first ? kHalf_ms : 2 * kHalf_ms;
+  if (addedMinutes != 0 || matchTime_ms < end_ms) return;
+  // 1 minute plus the half's stoppages, rounded up, at most 6.
+  addedMinutes = clamp(int(std::ceil(1.0f + stoppageMinutes - 0.001f)), 1, 6);
+  SpamMessage(int_to_str(addedMinutes) + (addedMinutes == 1 ? " minute" : " minutes") +
+                  " of added time",
+              4000);
+  const unsigned long added_ms = addedMinutes * 60000;
+  if (first) {
+    // The referee blows for half time at the next stoppage-free moment
+    // after this (units of 1800 clock ms, see Referee::Process).
+    scenario.second_half = (end_ms + added_ms + 1799) / 1800;
+  } else {
+    scenario.game_duration =
+        GetContext().step + StepsForClock(added_ms, matchDurationFactor);
+  }
+}
+
+void Match::StartSecondHalfClock() {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().injury_time) return;
+  matchTime_ms = kHalf_ms;
+  stoppageMinutes = 0.0f;
+  addedMinutes = 0;
+  // Full time is set at 90:00 (ProcessInjuryTime); until then keep the
+  // episode running.
+  GetScenarioConfig().game_duration =
+      GetContext().step + StepsForClock(kHalf_ms + 10 * 60000, matchDurationFactor);
 }
 
 boost::intrusive_ptr<Node> Match::GetDynamicNode() {

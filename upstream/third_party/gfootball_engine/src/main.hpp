@@ -161,6 +161,7 @@ struct ScenarioConfig {
     state->process(pass_power_assist);
     state->process(situational_accuracy);
     state->process(kick_windup_speed);
+    state->process(injury_time);
   }
 
   void ProcessState(EnvState* state) {
@@ -230,6 +231,12 @@ struct ScenarioConfig {
   // v1.1: kick animations (passes, shots) play this much faster up to the
   // moment the foot meets the ball; 1 = upstream timing.
   float kick_windup_speed = 1.0f;
+  // Injury time: halftime at 45:00 plus added time, full time at 90:00
+  // plus added time; added minutes grow with goals, fouls and cards.
+  bool injury_time = false;
+  // Display names (empty = built-in); short names show on the scoreboard.
+  std::string left_team_name, right_team_name;
+  std::string left_team_short_name, right_team_short_name;
   int second_half = 999999999;
 
  private:

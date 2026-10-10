@@ -293,7 +293,8 @@ struct FormationEntry {
         controllable == f.controllable &&
         stat_overrides == f.stat_overrides &&
         height == f.height &&
-        preferred_foot == f.preferred_foot;
+        preferred_foot == f.preferred_foot &&
+        name == f.name;
   }
   // rl_project P1: stat override by PlayerStat index; negative = keep the
   // built-in profile value. Sized lazily so untouched entries stay empty.
@@ -331,6 +332,7 @@ struct FormationEntry {
   std::vector<float> stat_overrides;
   float height = -1.0f;  // metres; <= 0 keeps the built-in profile height
   int preferred_foot = 0;  // 0 = unspecified (upstream), 1 = right, 2 = left
+  std::string name;  // display name; empty keeps the built-in one
 };
 
 struct PlayerImage {

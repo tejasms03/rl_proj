@@ -548,6 +548,10 @@ void PlayerData::ApplyOverrides(const FormationEntry& entry) {
   }
   if (entry.height > 0.0f) height = entry.height;
   preferredFoot = entry.preferred_foot;
+  if (!entry.name.empty()) {
+    firstName = "";
+    lastName = entry.name;
+  }
   UpdateValues();
 }
 

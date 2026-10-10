@@ -158,6 +158,13 @@ Whole matches (24 AI-vs-AI each, realistic ball): P4 on 1.33 goals / 4.5 shots /
 
 **Related option, not a patch:** `use_magnet` (scenario config, default on) steers the controlled player's movement toward the ball instead of following the input exactly. Turn it off for fully manual agent movement.
 
+### v1.1 additions (2026-10-10, all switches default off; v1.0 equivalence still passes)
+- `kick_windup_speed` (float, 1 = upstream): pass/shot anims play faster up to the touch frame; ball prediction, touch position and action smuggle are scaled to match. At 2: standing pass 410 → 220 ms, in-match short pass median 550 → 280 ms, same completion rate. Gamepad play uses 2.
+- `injury_time` (bool): half time at 45:00 + added, full time at 90:00 + added. Added minutes = ceil(1 + 0.5/goal + 0.25/foul + 0.25/yellow, 0.5/red, 0.5/penalty), 1–6 per half; shown as "+N" on the clock. No side swap at half time (upstream GRF behaviour). `steps_left` jumps at half time and shrinks at 90:00.
+- Display names: `left_team_name` / `right_team_name` (+ `*_short_name`), and `name` in `player_overrides` / `AddPlayer`.
+- `keep_match_length` (bool): scale `game_duration` so a match lasts the same game time at any `physics_steps_per_frame`.
+- Gamepad play only (not the env): CONTESTED controller state, goal and instant (SHARE) replays from 1 s state snapshots plus logged inputs (exact: restore + replay matches live play).
+
 ## 2. Testing
 
 | ID | Test | What it shows | When |

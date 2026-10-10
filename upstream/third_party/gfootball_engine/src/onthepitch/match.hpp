@@ -119,6 +119,12 @@ class Match {
     float GetAveragePossessionSide(int time_ms) const { return possessionSideHistory.GetAverage(time_ms); }
 
     unsigned long GetMatchTime_ms() const { return matchTime_ms; }
+    // rl_project injury time (scenario injury_time): stoppages in this half,
+    // announced added minutes, and the half-time / full-time handling.
+    void AddStoppage(float minutes) { stoppageMinutes += minutes; }
+    int GetAddedMinutes() const { return addedMinutes; }
+    void ProcessInjuryTime();
+    void StartSecondHalfClock();
     unsigned long GetActualTime_ms() const { return actualTime_ms; }
     void BumpActualTime_ms(unsigned long time);
     void UpdateIngameCamera();
@@ -201,6 +207,8 @@ class Match {
     Gui2Caption *messageCaption;
     unsigned long messageCaptionRemoveTime_ms = 0;
     unsigned long matchTime_ms = 0;
+    float stoppageMinutes = 0.0f;
+    int addedMinutes = 0;
     unsigned long actualTime_ms = 0;
     unsigned long goalScoredTimer = 0;
 

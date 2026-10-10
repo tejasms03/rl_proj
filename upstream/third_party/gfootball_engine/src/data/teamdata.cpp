@@ -150,6 +150,17 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       color2 = Vector3(50, 50, 126);
       break;
   }
+  {  // rl_project: display names from the scenario config
+    const ScenarioConfig& scenario = GetScenarioConfig();
+    const bool left = teamDatabaseID == 3;
+    const std::string& custom = left ? scenario.left_team_name : scenario.right_team_name;
+    const std::string& custom_short = left ? scenario.left_team_short_name : scenario.right_team_short_name;
+    if (!custom.empty()) {
+      name = custom;
+      shortName = "";
+    }
+    if (!custom_short.empty()) shortName = custom_short;
+  }
 
   if (shortName.compare("") == 0) {
     DO_VALIDATION;
@@ -259,6 +270,7 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       formation[x].stat_overrides = f[x].stat_overrides;
       formation[x].height = f[x].height;
       formation[x].preferred_foot = f[x].preferred_foot;
+      formation[x].name = f[x].name;
     }
   }
 
