@@ -415,6 +415,36 @@ void Team::Process() {
       DO_VALIDATION;
       // switch button
       Player *selectedPlayer = humanGamers[i]->GetSelectedPlayer();
+      // rl_project: right-stick switch (FIFA): the nearest teammate within
+      // ~50 degrees of the flick, measured from the selected player. Not
+      // while that player has the ball.
+      {
+        AIControlledKeyboard *hid = humanGamers[i]->GetHIDevice();
+        Vector3 flick = hid->TakeSwitchDirection().Get2D();
+        if (flick.GetLength() > 0.1f && selectedPlayer &&
+            !selectedPlayer->HasUniquePossession()) {
+          flick.Normalize();
+          Player *best = 0;
+          float bestScore = 1e9f;
+          for (auto candidate : players) {
+            if (!candidate->IsActive() || candidate == selectedPlayer ||
+                candidate == GetGoalie() || candidate->ExternalController() ||
+                !candidate->GetFormationEntry().controllable) continue;
+            Vector3 rel = (candidate->GetPosition() - selectedPlayer->GetPosition()).Get2D();
+            float distance = rel.GetLength();
+            if (distance < 0.5f) continue;
+            float cosine = rel.GetDotProduct(flick) / distance;
+            if (cosine < 0.64f) continue;  // outside ~50 degrees
+            float score = distance * (2.0f - cosine);  // near and on the line
+            if (score < bestScore) { bestScore = score; best = candidate; }
+          }
+          if (best) {
+            mainSelectedPlayer = best;
+            humanGamers[i]->SetSelectedPlayer(best);
+            selectedPlayer = best;
+          }
+        }
+      }
       if (humanGamers[i]->GetHIDevice()->GetButton(e_ButtonFunction_Switch) &&
           !humanGamers[i]->GetHIDevice()->GetPreviousButtonState(
               e_ButtonFunction_Switch) &&

@@ -174,6 +174,7 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def("perform_action", &GameEnv_Python::action)
       .def("set_kick_power", &GameEnv_Python::set_kick_power)
       .def("set_direction", &GameEnv_Python::set_direction)
+      .def("set_switch_direction", &GameEnv_Python::set_switch_direction)
       .def("sticky_action_state", &GameEnv_Python::sticky_action_state)
       .def("step", &GameEnv_Python::step_python)
       .def("get_state", &GameEnv_Python::get_state_python)

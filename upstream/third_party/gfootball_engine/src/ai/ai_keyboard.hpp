@@ -55,6 +55,13 @@ class AIControlledKeyboard {
     // rl_project P3: variant of the last kick pressed (e_KickVariant).
     void SetKickVariant(int variant) { kickVariant_ = variant; }
     int GetKickVariant() const { return kickVariant_; }
+    // rl_project: right-stick player switch, consumed once by the team.
+    void SetSwitchDirection(const blunted::Vector3& d) { switchDirection_ = d; }
+    blunted::Vector3 TakeSwitchDirection() {
+      blunted::Vector3 d = switchDirection_ * mirror;
+      switchDirection_ = blunted::Vector3(0, 0, 0);
+      return d;
+    }
     bool Disabled() { return disabled_;}
     void SetDisabled(bool disabled);
     void Reset();
@@ -69,6 +76,7 @@ class AIControlledKeyboard {
     bool buttons_pressed_[e_ButtonFunction_Size];
     float kickPower_ = -1.0f;
     int kickVariant_ = 0;
+    blunted::Vector3 switchDirection_;
     const e_PlayerColor playerColor;
 };
 

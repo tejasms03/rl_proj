@@ -178,8 +178,11 @@ class FootballEnvCore(object):
     powers = [float(a[1]) if isinstance(a, (tuple, list)) else -1.0 for a in action]
     # (action, power, dx, dy): an analog movement direction set every step,
     # independent of the button action (human gamepad play).
-    analog = [(float(a[2]), float(a[3])) if isinstance(a, (tuple, list)) and len(a) == 4
+    analog = [(float(a[2]), float(a[3])) if isinstance(a, (tuple, list)) and len(a) >= 4
               else None for a in action]
+    # (action, power, dx, dy, sx, sy): plus a right-stick player-switch flick.
+    switch = [(float(a[4]), float(a[5])) if isinstance(a, (tuple, list)) and len(a) >= 6
+              and (a[4] or a[5]) else None for a in action]
     action = [a[0] if isinstance(a, (tuple, list)) else a for a in action]
     # Arrays of (action, power) rows arrive as floats.
     action = [int(a) if isinstance(a, (float, np.floating)) else a for a in action]
@@ -220,6 +223,8 @@ class FootballEnvCore(object):
         self._env.perform_action(player_action._backend_action, left_team, i)
         if analog[action_index - 1] is not None:
           self._env.set_direction(left_team, i, *analog[action_index - 1])
+        if switch[action_index - 1] is not None:
+          self._env.set_switch_direction(left_team, i, *switch[action_index - 1])
     while True:
       enter_time = timeit.default_timer()
       self._env.step()

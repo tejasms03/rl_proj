@@ -16,7 +16,7 @@ PS_BUTTONS = {
     'share': 4, 'ps': 5, 'options': 6, 'l3': 7, 'r3': 8, 'l1': 9, 'r1': 10,
     'up': 11, 'down': 12, 'left': 13, 'right': 14,
 }
-PS_AXES = {'left_x': 0, 'left_y': 1, 'l2': 4, 'r2': 5}
+PS_AXES = {'left_x': 0, 'left_y': 1, 'right_x': 2, 'right_y': 3, 'l2': 4, 'r2': 5}
 
 # Kicks: re-pressed every step while held, so the engine's power gauge
 # charges (it releases kick buttons after each step). Released = kick.
@@ -64,6 +64,7 @@ class Player(gamepad.Player):
     gamepad.Player.__init__(self, player_config, env_config)
     self._held = {}  # action -> currently held (as last sent)
     self._tapped = set()  # buttons pressed since the last step (even if released)
+    self._flicked = False  # right stick is out (one switch per flick)
 
   def _button(self, name):
     """Held now, or pressed at any moment since the last step (quick taps)."""
@@ -117,7 +118,20 @@ class Player(gamepad.Player):
     # action so you can aim while charging. Dead zone 0.3; full speed at any
     # tilt (sprint is R2). Stick y points down; the engine's +y is up.
     dx, dy = (x / length, -y / length) if length > 0.3 else (0.0, 0.0)
-    return (action, -1.0, dx, dy)
+    # Right stick flick: switch to the teammate that way (FIFA). One switch
+    # per flick; not while you have the ball at your feet.
+    sx, sy = 0.0, 0.0
+    rx, ry = self._axis('right_x'), self._axis('right_y')
+    reach = (rx * rx + ry * ry) ** 0.5
+    if reach > 0.7 and not self._flicked:
+      self._flicked = True
+      on_ball = (observation['ball_owned_team'] == 0 and
+                 observation['ball_owned_player'] == observation['active'])
+      if not on_ball:
+        sx, sy = rx / reach, -ry / reach
+    elif reach < 0.4:
+      self._flicked = False
+    return (action, -1.0, dx, dy, sx, sy)
 
   def _button_action(self, with_ball):
     # 1. Kicks (with the ball): keep pressing while held to charge power.

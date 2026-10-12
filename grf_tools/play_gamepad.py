@@ -15,8 +15,10 @@ second. FIFA-style layout; hold a kick to charge power (aim while charging):
               L2 (hold, stick idle) jockey / contain   /\\ keeper rush
               L1 switch to the player nearest the ball (no automatic switching)
   any time:   R2 sprint   L2 close control   left stick / D-pad move
+              right stick flick: switch to the teammate that way
+              OPTIONS pause / resume
               SHARE instant replay (last 8 s); goals replay automatically
-              (OPTIONS skips a replay)
+              (L1+L2+R1+R2 together skips a replay)
 """
 
 from __future__ import annotations
@@ -138,6 +140,8 @@ class Replays:
     SNAPSHOT_EVERY = 50   # steps (1 s at 50 Hz)
     KEEP_SECONDS = 15
     SHARE, OPTIONS = 4, 6  # PS controller buttons
+    SHOULDERS = (9, 10)  # L1, R1
+    TRIGGERS = (4, 5)    # L2, R2 axes (rest at -1)
 
     def __init__(self, env, step_seconds, length_s=8.0, slow=0.75):
         self.env, self.step_seconds = env, step_seconds
@@ -173,6 +177,23 @@ class Replays:
             self.actions.clear()
             self.snapshots.clear()
 
+    def _shoulders(self):
+        """(L1/R1 held, L2/R2 held) as two lists."""
+        joystick = getattr(self.player, "_joystick", None)
+        if not joystick:
+            return [], []
+        triggers = [a < joystick.get_numaxes() and joystick.get_axis(a) > 0.0 for a in self.TRIGGERS]
+        return [self._button(b) for b in self.SHOULDERS], triggers
+
+    def _skip_held(self):
+        """FIFA: L1 + L2 + R1 + R2 together skips a replay."""
+        bumpers, triggers = self._shoulders()
+        return bool(bumpers) and all(bumpers) and all(triggers)
+
+    def _any_skip_input(self):
+        bumpers, triggers = self._shoulders()
+        return any(bumpers) or any(triggers)
+
     def share_pressed(self):
         down = self._button(self.SHARE)
         pressed = down and not self._share_was_down
@@ -191,7 +212,7 @@ class Replays:
             logged = {t: None for t in range(start[0], self.t)}
         if start[0] not in logged:
             return
-        print(f"{label} (OPTIONS to skip)", flush=True)
+        print(f"{label} (L1+L2+R1+R2 to skip)", flush=True)
         live = self.env.get_state()
         self.env.set_state(start[1])
         t = start[0]
@@ -200,7 +221,8 @@ class Replays:
         next_step = time.perf_counter()
         try:
             while t < min(end_t, self.t) and t in logged:
-                if self._button(self.OPTIONS):
+                pygame.event.pump()
+                if self._skip_held():
                     break
                 self.env.step([])
                 t += 1
@@ -214,9 +236,41 @@ class Replays:
             self.env.set_state(live)
             if self.player:
                 self.player.take_action = self._recording
-            while self._button(self.OPTIONS):  # don't let the skip press leak into play
+            while self._any_skip_input():  # don't let the skip press leak into play
                 time.sleep(0.01)
                 pygame.event.pump()
+
+
+class Pause:
+    """OPTIONS pauses and resumes (FIFA). While paused the frozen frame is
+    redrawn so the window stays responsive."""
+
+    OPTIONS = 6
+
+    def __init__(self, env):
+        self.env = env
+        player = env._players[0] if env._players else None
+        self.joystick = getattr(player, "_joystick", None)
+        self._was_down = False
+
+    def _pressed(self):
+        pygame.event.pump()
+        down = bool(self.joystick and self.OPTIONS < self.joystick.get_numbuttons()
+                    and self.joystick.get_button(self.OPTIONS))
+        pressed = down and not self._was_down
+        self._was_down = down
+        return pressed
+
+    def check(self):
+        """Call once per step; blocks while paused. True if it paused."""
+        if not self._pressed():
+            return False
+        print("PAUSED (OPTIONS to resume)", flush=True)
+        while not self._pressed():
+            self.env._env._env.render(True)  # redraw + pump window events
+            time.sleep(0.03)
+        print("resumed", flush=True)
+        return True
 
 
 def main() -> None:
@@ -293,11 +347,14 @@ def main() -> None:
     kick_log = KickLog(env, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                          "logs", "kicks.log"))
     replays = None if args.no_replays else Replays(env, step_seconds)
+    pause = Pause(env)
     goal_replay_at = None  # step at which to start a pending goal replay
     score = None
     next_step = time.perf_counter()
     try:
         while True:
+            if pause.check():
+                next_step = time.perf_counter()
             if replays:
                 replays.before_step()
             observation, _, done, _ = env.step([])

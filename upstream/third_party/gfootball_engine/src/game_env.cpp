@@ -184,6 +184,13 @@ void GameEnv::set_direction(bool left_team, int player, float x, float y) {
       ->SetDirection(Vector3(x, y, 0));
 }
 
+void GameEnv::set_switch_direction(bool left_team, int player, float x, float y) {
+  SetGame(this);
+  int controller_id = player + (left_team ? 0 : 11);
+  static_cast<AIControlledKeyboard*>(GetControllers()[controller_id])
+      ->SetSwitchDirection(Vector3(x, y, 0));
+}
+
 void GameEnv::action(int action, bool left_team, int player) {
   SetGame(this);
   GetTracker()->setDisabled(true);
