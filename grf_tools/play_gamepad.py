@@ -53,6 +53,9 @@ V1 = {
     "switch_to_ball": True,       # L1 -> the teammate who reaches the ball first
     "jockey": True,               # hold L2 (no stick) when defending: contain
     "auto_receive": True,         # stick idle: the pass receiver runs to the ball
+    "air_ball_switch": True,      # defending: switch once per lofted ball (FIFA "air balls")
+    "landing_marker": True,       # yellow ring where a lofted ball comes down
+    "selection_ring": True,       # glowing ring under the player you control
 }
 
 KICK_ACTIONS = {"short_pass", "long_pass", "high_pass", "shot", "curl_shot", "chip",

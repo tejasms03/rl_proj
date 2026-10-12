@@ -168,6 +168,9 @@ struct ScenarioConfig {
     state->process(switch_to_ball);
     state->process(jockey);
     state->process(auto_receive);
+    state->process(air_ball_switch);
+    state->process(landing_marker);
+    state->process(selection_ring);
   }
 
   void ProcessState(EnvState* state) {
@@ -253,6 +256,13 @@ struct ScenarioConfig {
   bool jockey = false;
   // stick released: the selected player runs to meet a pass to him.
   bool auto_receive = false;
+  // FIFA "air balls" auto-switch: when defending, switch once per lofted ball
+  // to the teammate who gets to it first (with defend_auto_switch off).
+  bool air_ball_switch = false;
+  // Draw a marker where a lofted ball will land (display only).
+  bool landing_marker = false;
+  // Glowing ring on the grass under the player you control (display only).
+  bool selection_ring = false;
   // Display names (empty = built-in); short names show on the scoreboard.
   std::string left_team_name, right_team_name;
   std::string left_team_short_name, right_team_short_name;

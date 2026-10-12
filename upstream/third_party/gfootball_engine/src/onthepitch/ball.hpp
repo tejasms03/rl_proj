@@ -74,6 +74,7 @@ class Ball {
     void Mirror();
     boost::intrusive_ptr<Geometry> GetBallGeom() { DO_VALIDATION; return ball; }
 
+    Vector3 GetRenderedPosition() const { return positionBuffer; }  // rl_project
     inline Vector3 Predict(int predictTime_ms) const {
       int index = predictTime_ms;
       if (index >= ballPredictionSize_ms) index = ballPredictionSize_ms - 10;

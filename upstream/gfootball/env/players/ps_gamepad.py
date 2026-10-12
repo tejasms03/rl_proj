@@ -109,7 +109,9 @@ class Player(gamepad.Player):
     self._tapped = {event.button for event in event_queue.get('gamepad', self._index)
                     if event.type == pygame.JOYBUTTONDOWN}
     self.state = self._state(observation)
-    action = self._button_action(self.state != DEFEND)
+    on_ball = (observation['ball_owned_team'] == 0 and
+               observation['ball_owned_player'] == observation['active'])
+    action = self._button_action(self.state != DEFEND, on_ball)
     x, y = self._axis('left_x'), self._axis('left_y')
     x += float(bool(self._button('right'))) - float(bool(self._button('left')))
     y += float(bool(self._button('down'))) - float(bool(self._button('up')))
@@ -133,7 +135,7 @@ class Player(gamepad.Player):
       self._flicked = False
     return (action, -1.0, dx, dy, sx, sy)
 
-  def _button_action(self, with_ball):
+  def _button_action(self, with_ball, on_ball):
     # 1. Kicks (with the ball): keep pressing while held to charge power.
     if with_ball:
       for name, modifier, action in KICKS:
@@ -147,9 +149,16 @@ class Player(gamepad.Player):
       result = self._toggle(action, self._button(name) and not with_ball)
       if result:
         return result
-    if not with_ball:  # L1 is a kick modifier when attacking
+    # L1 switches whenever the ball is not at your feet (loose balls too);
+    # on the ball it is the chip modifier (L1 + O).
+    if not on_ball:
       for name, action in TOGGLES.items():
         result = self._toggle(action, self._button(name))
+        if result:
+          return result
+    else:
+      for name, action in TOGGLES.items():
+        result = self._toggle(action, False)
         if result:
           return result
     for name, action in TRIGGERS.items():

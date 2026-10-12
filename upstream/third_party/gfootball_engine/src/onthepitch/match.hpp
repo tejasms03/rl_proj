@@ -125,6 +125,8 @@ class Match {
     int GetAddedMinutes() const { return addedMinutes; }
     void ProcessInjuryTime();
     void StartSecondHalfClock();
+    void PutLandingMarker();
+    void PlaceSelectionRing(const Vector3 &feet);
     unsigned long GetActualTime_ms() const { return actualTime_ms; }
     void BumpActualTime_ms(unsigned long time);
     void UpdateIngameCamera();
@@ -205,6 +207,11 @@ class Match {
     Gui2ScoreBoard *scoreboard;
     Gui2Radar *radar;
     Gui2Caption *messageCaption;
+    // rl_project landing_marker: dots on a ground circle, perspective-projected.
+    std::vector<Gui2Caption*> landingRing;
+    // rl_project selection_ring: bright inner ring + faint outer halo.
+    std::vector<Gui2Caption*> selectionRing;
+    bool selectionRingPlaced = false;
     unsigned long messageCaptionRemoveTime_ms = 0;
     unsigned long matchTime_ms = 0;
     float stoppageMinutes = 0.0f;

@@ -163,6 +163,7 @@ class Team {
     boost::intrusive_ptr < Resource<Surface> > kit;
     int side = -1;
     bool mirrored = false;
+    bool airBallSwitched = false;  // rl_project air_ball_switch
 };
 
 #endif

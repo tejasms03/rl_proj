@@ -457,16 +457,8 @@ void Team::Process() {
         DO_VALIDATION;
         Player *targetPlayer = 0;
 
-        if (!designatedTeamPossessionPlayer->ExternalController() &&
-            match->GetBestPossessionTeam() == this) {
-          DO_VALIDATION;
-          targetPlayer = designatedTeamPossessionPlayer;
-        } else if (!GetBestPossessionPlayer()->ExternalController() &&
-            match->GetBestPossessionTeam() == this) {
-          DO_VALIDATION;
-          targetPlayer = GetBestPossessionPlayer();
-        } else if (GetScenarioConfig().switch_to_ball) {
-          // rl_project: the teammate who gets to the ball first.
+        if (GetScenarioConfig().switch_to_ball) {
+          // rl_project: always the teammate who gets to the ball first.
           int best_ms = 1 << 30;
           for (auto candidate : players) {
             if (!candidate->IsActive() || candidate == selectedPlayer ||
@@ -476,6 +468,14 @@ void Team::Process() {
               targetPlayer = candidate;
             }
           }
+        } else if (!designatedTeamPossessionPlayer->ExternalController() &&
+            match->GetBestPossessionTeam() == this) {
+          DO_VALIDATION;
+          targetPlayer = designatedTeamPossessionPlayer;
+        } else if (!GetBestPossessionPlayer()->ExternalController() &&
+            match->GetBestPossessionTeam() == this) {
+          DO_VALIDATION;
+          targetPlayer = GetBestPossessionPlayer();
         } else {
           targetPlayer = AI_GetBestSwitchTargetPlayer(
               match, this, humanGamers[i]->GetHIDevice()->GetDirection());
@@ -657,6 +657,21 @@ void Team::UpdateSwitch() {
             e_PlayerRole_GK) {
       DO_VALIDATION;
       SelectPlayer(designatedTeamPossessionPlayer);
+    }
+  }
+
+  // rl_project air_ball_switch: once per lofted ball while defending, hand
+  // control to the teammate who gets to it first.
+  if (match->IsInPlay() && !humanGamers.empty() && GetScenarioConfig().air_ball_switch) {
+    DO_VALIDATION;
+    const float height = match->GetBall()->Predict(0).coords[2];
+    if (height < 0.5f) airBallSwitched = false;
+    if (!airBallSwitched && height > 1.5f && !HasPossession() &&
+        match->GetLastTouchTeamID() != GetID() &&
+        !designatedTeamPossessionPlayer->ExternalControllerActive() &&
+        designatedTeamPossessionPlayer->GetFormationEntry().role != e_PlayerRole_GK) {
+      SelectPlayer(designatedTeamPossessionPlayer);
+      airBallSwitched = true;
     }
   }
 

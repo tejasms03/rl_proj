@@ -29,6 +29,7 @@
 #include "../scene/objectfactory.hpp"
 #include "../scene/objects/light.hpp"
 #include "../utils/splitgeometry.hpp"
+#include "../utils.hpp"
 #include "AIsupport/AIfunctions.hpp"
 #include "file.h"
 #include "player/playerofficial.hpp"
@@ -254,6 +255,28 @@ Match::Match(MatchData *matchData, const std::vector<AIControlledKeyboard *> &co
   messageCaption = new Gui2Caption(menuTask->GetWindowManager(), "game_messages", 0, 0, 80, 8, "");
   messageCaption->SetTransparency(0.3f);
   root->AddView(messageCaption);
+  for (int i = 0; i < 25; i++) {  // 24 on the ring + 1 at the centre
+    Gui2Caption *dot = new Gui2Caption(menuTask->GetWindowManager(),
+                                       "game_landing_dot_" + int_to_str(i), 0, 0, 0.6, 1.2,
+                                       i == 24 ? "+" : "o");
+    dot->SetColor(Vector3(255, 230, 40));
+    dot->SetOutlineColor(Vector3(70, 55, 0));
+    root->AddView(dot);
+    dot->Hide();
+    landingRing.push_back(dot);
+  }
+  for (int i = 0; i < 48; i++) {  // 24 bright inner dots, then 24 halo dots
+    const bool halo = i >= 24;
+    Gui2Caption *dot = new Gui2Caption(menuTask->GetWindowManager(),
+                                       "game_selection_dot_" + int_to_str(i), 0, 0,
+                                       halo ? 0.8 : 0.6, halo ? 1.6 : 1.2, "o");
+    dot->SetColor(halo ? Vector3(120, 230, 255) : Vector3(210, 250, 255));
+    dot->SetOutlineColor(Vector3(30, 140, 220));
+    if (halo) dot->SetTransparency(0.55f);
+    root->AddView(dot);
+    dot->Hide();
+    selectionRing.push_back(dot);
+  }
   messageCaptionRemoveTime_ms = actualTime_ms + 5000;
 
   // for usage in destructor
@@ -1134,8 +1157,13 @@ void Match::Put() {
 
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
   DO_VALIDATION;
+  selectionRingPlaced = false;
   teams[first_team]->Put2D(reverse);
   teams[second_team]->Put2D(!reverse);
+  if (!selectionRingPlaced) {
+    for (auto dot : selectionRing) dot->Hide();
+  }
+  PutLandingMarker();
 
   // if (buf_actualTime_ms % 100 == 0) { DO_VALIDATION; // a better way would
   // be to count iterations (this modulo is irregular since not all process
@@ -1206,6 +1234,66 @@ void Match::StartSecondHalfClock() {
   // episode running.
   GetScenarioConfig().game_duration =
       GetContext().step + StepsForClock(kHalf_ms + 10 * 60000, matchDurationFactor);
+}
+
+void Match::PlaceSelectionRing(const Vector3 &feet) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().selection_ring || selectionRing.empty()) return;
+  selectionRingPlaced = true;
+  for (size_t i = 0; i < selectionRing.size(); i++) {
+    const bool halo = i >= 24;
+    const float radius = halo ? 0.85f : 0.65f;
+    const float angle = 2.0f * pi * (i % 24) / 24.0f + (halo ? pi / 24.0f : 0.0f);
+    Vector3 ground = feet + Vector3(std::cos(angle) * radius, std::sin(angle) * radius, 0.02f);
+    Vector3 screen = GetProjectedCoord(ground, GetCamera());
+    float w, h;
+    selectionRing[i]->GetSize(w, h);
+    selectionRing[i]->SetPosition(screen.coords[0] - w * 0.5f, screen.coords[1] - h * 0.5f);
+    selectionRing[i]->Show();
+  }
+}
+
+void Match::PutLandingMarker() {
+  DO_VALIDATION;
+  // rl_project: where a lofted ball comes down (first bounce), FIFA style.
+  if (landingRing.empty()) return;
+  bool show = false;
+  Vector3 landing;
+  const Vector3 now = ball->Predict(0);
+  if (GetScenarioConfig().landing_marker && IsInPlay() && now.coords[2] > 1.2f) {
+    for (int t = 10; t < (int)ballPredictionSize_ms - 10; t += 10) {
+      const Vector3 p = ball->Predict(t);
+      if (p.coords[2] < 0.3f && ball->Predict(t - 10).coords[2] > p.coords[2]) {
+        landing = Vector3(p.coords[0], p.coords[1], 0);
+        show = true;
+        break;
+      }
+    }
+  }
+  if (!show) {
+    for (auto dot : landingRing) dot->Hide();
+    return;
+  }
+  // The match may be processed mirrored; match the rendered ball's frame.
+  const Vector3 rendered = ball->GetRenderedPosition();
+  if ((rendered.Get2D() + now.Get2D()).GetLength() < (rendered.Get2D() - now.Get2D()).GetLength()) {
+    landing *= Vector3(-1, -1, 0);
+  }
+  // Points on a 1 m circle lying on the grass, through the match camera, so
+  // the ring foreshortens like a painted circle.
+  const float radius = 1.0f;
+  for (size_t i = 0; i < landingRing.size(); i++) {
+    Vector3 ground = landing;
+    if (i < 24) {
+      const float angle = 2.0f * pi * i / 24.0f;
+      ground += Vector3(std::cos(angle) * radius, std::sin(angle) * radius, 0);
+    }
+    Vector3 screen = GetProjectedCoord(ground + Vector3(0, 0, 0.02f), GetCamera());
+    float w, h;
+    landingRing[i]->GetSize(w, h);
+    landingRing[i]->SetPosition(screen.coords[0] - w * 0.5f, screen.coords[1] - h * 0.5f);
+    landingRing[i]->Show();
+  }
 }
 
 boost::intrusive_ptr<Node> Match::GetDynamicNode() {
