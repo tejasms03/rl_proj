@@ -80,9 +80,11 @@ class Replays:
         self.env, self.step_seconds = env, step_seconds
         self.length_steps = int(length_s * self.SNAPSHOT_EVERY)
         self.slow = slow
-        self.player = env._players[0]
-        self._take_action = self.player.take_action
-        self.player.take_action = self._recording
+        # No players when spectating (the AI runs both teams): nothing to log.
+        self.player = env._players[0] if env._players else None
+        if self.player:
+            self._take_action = self.player.take_action
+            self.player.take_action = self._recording
         self.t = 0
         keep = self.KEEP_SECONDS * self.SNAPSHOT_EVERY
         self.actions = collections.deque(maxlen=keep)       # (t, action)
@@ -122,13 +124,16 @@ class Replays:
         if start is None:
             return
         logged = dict(self.actions)
+        if self.player is None:  # spectating: the AI replays itself
+            logged = {t: None for t in range(start[0], self.t)}
         if start[0] not in logged:
             return
         print(f"{label} (OPTIONS to skip)", flush=True)
         live = self.env.get_state()
         self.env.set_state(start[1])
         t = start[0]
-        self.player.take_action = lambda observations: logged[t]
+        if self.player:
+            self.player.take_action = lambda observations: logged[t]
         next_step = time.perf_counter()
         try:
             while t < min(end_t, self.t) and t in logged:
@@ -144,7 +149,8 @@ class Replays:
                     next_step = time.perf_counter()
         finally:
             self.env.set_state(live)
-            self.player.take_action = self._recording
+            if self.player:
+                self.player.take_action = self._recording
             while self._button(self.OPTIONS):  # don't let the skip press leak into play
                 time.sleep(0.01)
                 pygame.event.pump()
@@ -181,9 +187,14 @@ def main() -> None:
         test_controller()
         return
 
+    pygame.joystick.init()
+    spectate = pygame.joystick.get_count() == 0
+    if spectate:
+        print("No controller found (pair or plug it in, then restart).\n"
+              "Spectator mode: the AI plays both teams.", flush=True)
     values = {
         "action_set": "full",
-        "players": ["ps_gamepad:left_players=1"],
+        "players": [] if spectate else ["ps_gamepad:left_players=1"],
         "real_time": True,
         "level": args.level,
         # Read the controller 50 times a second (default 10); physics is
