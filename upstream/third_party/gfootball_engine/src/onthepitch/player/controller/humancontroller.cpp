@@ -253,6 +253,10 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
         command.touchInfo.autoDirectionBias = 1.0f;
         command.touchInfo.desiredDirection = AI_GetShotDirection(CastPlayer(), command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
         command.touchInfo.desiredPower = kickPower(0.6f);
+        if (!(powerControl && agentPower >= 0.0f)) {  // rl_project: FIFA-like tap shot
+          const float floor = clamp(scenario.shot_power_floor, 0.0f, 0.9f);
+          command.touchInfo.desiredPower = floor + (1.0f - floor) * command.touchInfo.desiredPower;
+        }
         command.touchInfo.kickVariant = hid->GetKickVariant();  // curl / chip
 
         commandQueue.push_back(command);
@@ -641,7 +645,45 @@ void HumanController::_GetHidInput(Vector3 &rawInputDirection,
     DO_VALIDATION;
     rawInputDirection.coords[1] = std::max(0.0f, rawInputDirection.coords[1]);
   }
-  if (rawInputDirection.GetLength() < analogStickDeadzone) {
+  const ScenarioConfig &scenario = GetScenarioConfig();
+  const bool stickIdle = rawInputDirection.GetLength() < analogStickDeadzone;
+  const Vector3 ballPos = match->GetBall()->Predict(0).Get2D();
+  const Vector3 playerPos = CastPlayer()->GetPosition();
+  // rl_project jockey: hold dribble without the ball and the stick idle to
+  // stay goal-side of the ball, about 2 m off, closing at a matching pace.
+  if (scenario.jockey && stickIdle && hid->GetButton(e_ButtonFunction_Dribble) &&
+      !team->HasPossession() && match->IsInPlay() && !match->IsInSetPiece()) {
+    DO_VALIDATION;
+    const Vector3 ownGoal(team->GetDynamicSide() * pitchHalfW, 0, 0);
+    const Vector3 spot = ballPos + (ownGoal - ballPos).GetNormalized(0) * 2.0f;
+    const Vector3 toSpot = spot - playerPos;
+    const float distance = toSpot.GetLength();
+    if (distance < 0.4f) {
+      rawInputDirection = (ballPos - playerPos).GetNormalized(CastPlayer()->GetDirectionVec());
+      rawInputVelocityFloat = idleVelocity;
+    } else {
+      rawInputDirection = toSpot.GetNormalized(0);
+      rawInputVelocityFloat = distance > 6.0f ? sprintVelocity
+                              : distance > 2.0f ? walkVelocity : dribbleVelocity;
+    }
+    return;
+  }
+  // rl_project auto_receive: stick idle while a teammate's pass is on its
+  // way to this player -> run to where the ball can be met.
+  if (scenario.auto_receive && stickIdle && match->IsInPlay() &&
+      match->GetBallRetainer() == 0 && !CastPlayer()->HasPossession() &&
+      match->GetLastTouchTeamID() == team->GetID() &&
+      team->GetDesignatedTeamPossessionPlayer() == CastPlayer()) {
+    DO_VALIDATION;
+    const Vector3 meet = match->GetBall()->Predict(CastPlayer()->GetTimeNeededToGetToBall_ms()).Get2D();
+    const Vector3 toMeet = meet - playerPos;
+    if (toMeet.GetLength() > 0.5f) {
+      rawInputDirection = toMeet.GetNormalized(0);
+      rawInputVelocityFloat = toMeet.GetLength() > 3.0f ? sprintVelocity : walkVelocity;
+      return;
+    }
+  }
+  if (stickIdle) {
     DO_VALIDATION;
     rawInputDirection = CastPlayer()->GetDirectionVec();
     rawInputVelocityFloat = idleVelocity;

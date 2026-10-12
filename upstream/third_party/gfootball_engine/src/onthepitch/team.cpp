@@ -435,6 +435,17 @@ void Team::Process() {
             match->GetBestPossessionTeam() == this) {
           DO_VALIDATION;
           targetPlayer = GetBestPossessionPlayer();
+        } else if (GetScenarioConfig().switch_to_ball) {
+          // rl_project: the teammate who gets to the ball first.
+          int best_ms = 1 << 30;
+          for (auto candidate : players) {
+            if (!candidate->IsActive() || candidate == selectedPlayer ||
+                candidate == GetGoalie() || candidate->ExternalController()) continue;
+            if (candidate->GetTimeNeededToGetToBall_ms() < best_ms) {
+              best_ms = candidate->GetTimeNeededToGetToBall_ms();
+              targetPlayer = candidate;
+            }
+          }
         } else {
           targetPlayer = AI_GetBestSwitchTargetPlayer(
               match, this, humanGamers[i]->GetHIDevice()->GetDirection());
@@ -608,7 +619,8 @@ void Team::UpdateSwitch() {
 
   if (match->IsInPlay() && !humanGamers.empty()) {
     DO_VALIDATION;
-    if (!designatedTeamPossessionPlayer->ExternalControllerActive() &&
+    if ((GetScenarioConfig().defend_auto_switch || HasPossession()) &&  // rl_project
+        !designatedTeamPossessionPlayer->ExternalControllerActive() &&
         3 * designatedTeamPossessionPlayer->GetTimeNeededToGetToBall_ms() <
             HumanControlledToBallDistance() &&
         designatedTeamPossessionPlayer->GetFormationEntry().role !=

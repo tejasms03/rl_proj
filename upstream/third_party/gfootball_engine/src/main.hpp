@@ -162,6 +162,12 @@ struct ScenarioConfig {
     state->process(situational_accuracy);
     state->process(kick_windup_speed);
     state->process(injury_time);
+    state->process(pass_reach_assist);
+    state->process(shot_power_floor);
+    state->process(defend_auto_switch);
+    state->process(switch_to_ball);
+    state->process(jockey);
+    state->process(auto_receive);
   }
 
   void ProcessState(EnvState* state) {
@@ -234,6 +240,19 @@ struct ScenarioConfig {
   // Injury time: halftime at 45:00 plus added time, full time at 90:00
   // plus added time; added minutes grow with goals, fouls and cards.
   bool injury_time = false;
+  // Human-play assists (defaults keep upstream behaviour):
+  // passes aimed at a teammate never fall short of him (holding adds pace),
+  bool pass_reach_assist = false;
+  // shots from the hold-to-charge gauge start at this power (FIFA-like tap),
+  float shot_power_floor = 0.0f;
+  // false: no automatic player switch while defending (L1 only),
+  bool defend_auto_switch = true;
+  // L1 switches to the teammate who reaches the ball first,
+  bool switch_to_ball = false;
+  // hold dribble (L2) without the ball: stay goal-side of the ball, ~2 m off,
+  bool jockey = false;
+  // stick released: the selected player runs to meet a pass to him.
+  bool auto_receive = false;
   // Display names (empty = built-in); short names show on the scoreboard.
   std::string left_team_name, right_team_name;
   std::string left_team_short_name, right_team_short_name;

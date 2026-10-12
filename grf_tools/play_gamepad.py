@@ -12,7 +12,8 @@ second. FIFA-style layout; hold a kick to charge power (aim while charging):
               X short pass   O shot   [] lofted pass   /\\ through ball
               R1+O curl shot  L1+O chip  R1+[] driven long ball
   defending:  O (hold) tackle   [] slide tackle   X (hold) teammate press
-              /\\ keeper rush   L1 switch player
+              L2 (hold, stick idle) jockey / contain   /\\ keeper rush
+              L1 switch to the player nearest the ball (no automatic switching)
   any time:   R2 sprint   L2 close control   left stick / D-pad move
               SHARE instant replay (last 8 s); goals replay automatically
               (OPTIONS skips a replay)
@@ -29,6 +30,9 @@ warnings.filterwarnings("ignore")
 import pygame  # noqa: E402
 
 import collections  # noqa: E402
+import os  # noqa: E402
+
+import numpy as np  # noqa: E402
 
 from gfootball.env import config as gconfig  # noqa: E402
 from gfootball.env import football_env  # noqa: E402
@@ -40,7 +44,66 @@ V1 = {
     "situational_accuracy": True,
     "kick_power_control": True,
     "pass_direction_assist": 1.0,  # aim snaps toward the teammate you point at
+    # Human-play assists (env switches, off for training by default):
+    "pass_reach_assist": True,    # passes never fall short of the target teammate
+    "shot_power_floor": 0.2,      # a tapped shot still has some pace
+    "defend_auto_switch": False,  # keep your defender until you press L1
+    "switch_to_ball": True,       # L1 -> the teammate who reaches the ball first
+    "jockey": True,               # hold L2 (no stick) when defending: contain
+    "auto_receive": True,         # stick idle: the pass receiver runs to the ball
 }
+
+KICK_ACTIONS = {"short_pass", "long_pass", "high_pass", "shot", "curl_shot", "chip",
+                "through_ball"}
+
+
+class KickLog:
+    """Logs every kick press and whether the ball actually left the foot, to
+    logs/kicks.log, so missed kicks can be diagnosed after a match."""
+
+    def __init__(self, env, path):
+        from gfootball.env import football_action_set as A
+        self.names = {a: a._name for a in A.get_action_set({"action_set": "full"})}
+        self.player = env._players[0] if env._players else None
+        self.file = open(path, "a", buffering=1) if self.player else None
+        self.pending = None  # (description, steps waited, ball speed before)
+        self.last = None
+        if self.player:
+            self._take_action = self.player.take_action
+            self.player.take_action = self._watch
+            self.file.write(f"--- match started {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+    def _watch(self, observations):
+        action = self._take_action(observations)
+        name = self.names.get(action[0] if isinstance(action, tuple) else action, "")
+        if name in KICK_ACTIONS and name != self.last and self.pending is None:
+            o = observations[0]
+            owner = {-1: "nobody", 0: "us", 1: "them"}[int(o["ball_owned_team"])]
+            mine = o["ball_owned_team"] == 0 and o["ball_owned_player"] == o["active"]
+            x, y = o["ball"][0] * 54.4, o["ball"][1] * -83.6
+            info = (f"{name:12s} state={getattr(self.player, 'state', '?'):9s} owner={owner:6s} "
+                    f"at_my_feet={mine!s:5s} ball=({x:+.0f}m,{y:+.0f}m) mode={int(o['game_mode'])}")
+            self.pending = [info, 0, None]
+        self.last = name
+        return action
+
+    def after_step(self, observation):
+        if self.pending is None:
+            return
+        speed = float(np.linalg.norm(observation["ball_direction"][:2] * [54.4, 83.6])) / 0.02
+        info, waited, before = self.pending
+        if before is None:
+            self.pending[2] = speed
+        elif speed > 11 and speed > before + 4:
+            self.file.write(f"KICKED  after {waited * 20:4d} ms  {info}\n")
+            self.pending = None
+            return
+        self.pending[1] += 1
+        if self.pending[1] >= 75:
+            self.file.write(f"NO KICK in 1.5 s      {info}\n")
+            self.pending = None
+        elif before is not None:
+            self.pending[2] = speed
 
 
 def test_controller() -> None:
@@ -225,6 +288,10 @@ def main() -> None:
     # waits, so on a fast Mac the game runs faster than real time. Pace it:
     # each step is physics_steps_per_frame ticks of 10 ms game time.
     step_seconds = values["physics_steps_per_frame"] * 0.01 / max(args.speed, 0.1)
+    os.makedirs(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs"),
+                exist_ok=True)
+    kick_log = KickLog(env, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                         "logs", "kicks.log"))
     replays = None if args.no_replays else Replays(env, step_seconds)
     goal_replay_at = None  # step at which to start a pending goal replay
     score = None
@@ -234,6 +301,8 @@ def main() -> None:
             if replays:
                 replays.before_step()
             observation, _, done, _ = env.step([])
+            if kick_log.file:
+                kick_log.after_step(observation)
             if replays:
                 replays.after_step(done)
                 new_score = tuple(observation["score"])  # no agent: one raw dict

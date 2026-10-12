@@ -1081,6 +1081,8 @@ void AI_ApplyThroughBall(Player *passer, Player *target, Vector3 &direction, flo
   const ScenarioConfig &scenario = GetScenarioConfig();
   if (!(scenario.kick_power_control && scenario.pass_power_assist < 0.999f)) {
     power = leadPower;
+  } else if (scenario.pass_reach_assist) {
+    power = std::max(power, leadPower);  // reaches the runner at least
   }
 }
 
@@ -1247,6 +1249,13 @@ void AI_GetPass(Player *player, e_FunctionType passType,
   }
   Vector3 resultingTargetRel = (autoTargetRel.GetNormalized(0) * adaptedAutoDirectionBias + manualTargetRel.GetNormalized(0) * (1.0f - adaptedAutoDirectionBias)).GetNormalized(manualTarget);
   resultingTargetRel *= float(autoTargetRel.GetLength() * adaptedAutoPowerBias + manualTargetRel.GetLength() * (1.0f - adaptedAutoPowerBias));
+  // rl_project pass_reach_assist: a pass aimed at a teammate never falls
+  // short of him; a longer charge only adds distance/pace beyond that.
+  if (GetScenarioConfig().pass_reach_assist && bestTargetPlayer != player &&
+      adaptedAutoDirectionBias > 0.5f &&
+      resultingTargetRel.GetLength() < autoTargetRel.GetLength()) {
+    resultingTargetRel = resultingTargetRel.GetNormalized(autoTargetRel) * autoTargetRel.GetLength();
+  }
 
   AI_GetAutoPass(passType, resultingTargetRel, resultingDirection, resultingPower);
 }
