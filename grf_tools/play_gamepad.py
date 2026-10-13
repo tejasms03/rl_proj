@@ -134,6 +134,19 @@ def test_controller() -> None:
         pass
 
 
+def _pump():
+    """Refresh joystick state. pygame's event pump needs its video system,
+    which is not always initialised alongside the engine's own window."""
+    try:
+        pygame.event.pump()
+    except pygame.error:
+        try:
+            pygame.display.init()
+            pygame.event.pump()
+        except pygame.error:
+            pass
+
+
 class Replays:
     """Goal and instant replays. Every second the match state is snapshotted
     (about 0.2 ms each) and every step the controller's action is logged; a
@@ -224,7 +237,7 @@ class Replays:
         next_step = time.perf_counter()
         try:
             while t < min(end_t, self.t) and t in logged:
-                pygame.event.pump()
+                _pump()
                 if self._skip_held():
                     break
                 self.env.step([])
@@ -241,7 +254,7 @@ class Replays:
                 self.player.take_action = self._recording
             while self._any_skip_input():  # don't let the skip press leak into play
                 time.sleep(0.01)
-                pygame.event.pump()
+                _pump()
 
 
 class Pause:
@@ -257,7 +270,7 @@ class Pause:
         self._was_down = False
 
     def _pressed(self):
-        pygame.event.pump()
+        _pump()
         down = bool(self.joystick and self.OPTIONS < self.joystick.get_numbuttons()
                     and self.joystick.get_button(self.OPTIONS))
         pressed = down and not self._was_down

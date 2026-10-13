@@ -136,6 +136,15 @@ void main(void) {
 
   vec3 base = texture(map_albedo, texCoord).xyz;
 
+  // rl_project: emissive ground markers (material shininess 0.777) show
+  // their own colour, untouched by ambient tint, SSAO, sun or shadow.
+  if (abs(texture(map_normal, texCoord).w - 0.777f) < 0.003f) {
+    stdout0 = vec4(base * 0.95f, 1.0);
+    stdout1.r = 0.0f;
+    stdout1.g = 1.0f;
+    return;
+  }
+
   float brightness = 0.15f;//0.25f;
 
   // blueish tint + brightness

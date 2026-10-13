@@ -71,6 +71,11 @@ void main(void) {
   vec3 lightDir = normalize(lightPosition - worldPosition.xyz);
 
   vec4 normalshine = texture(map_normal, texCoord);
+  if (abs(normalshine.w - 0.777f) < 0.003f) {  // rl_project emissive marker
+    stdout0 = vec4(0.0f);
+    stdout1 = vec4(0.0f);
+    return;
+  }
   vec3 normal = normalize(normalshine.xyz);
 
   float nDotLD = dot(lightDir, normal);

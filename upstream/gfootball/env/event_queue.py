@@ -37,7 +37,16 @@ def fits(event, controller_kind, controller_index):
 def get(controller_kind, controller_index=None):
   global _queue
   global _controllers
-  _queue.extend(pygame.event.get())
+  try:
+    _queue.extend(pygame.event.get())
+  except pygame.error:
+    # rl_project: pygame's video system is sometimes not up (two SDL copies
+    # are loaded on macOS); start it, else read no events this step.
+    try:
+      pygame.display.init()
+      _queue.extend(pygame.event.get())
+    except pygame.error:
+      pass
   result = []
   new_state = []
   for event in _queue:

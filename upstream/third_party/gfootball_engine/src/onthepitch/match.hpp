@@ -207,10 +207,10 @@ class Match {
     Gui2ScoreBoard *scoreboard;
     Gui2Radar *radar;
     Gui2Caption *messageCaption;
-    // rl_project landing_marker: dots on a ground circle, perspective-projected.
-    std::vector<Gui2Caption*> landingRing;
-    // rl_project selection_ring: bright inner ring + faint outer halo.
-    std::vector<Gui2Caption*> selectionRing;
+    // rl_project landing_marker / selection_ring: flat ring meshes on the
+    // grass (media/objects/rl), parked below the pitch when not shown.
+    boost::intrusive_ptr<Geometry> landingRingGeom;
+    boost::intrusive_ptr<Geometry> selectionRingGeom;
     bool selectionRingPlaced = false;
     unsigned long messageCaptionRemoveTime_ms = 0;
     unsigned long matchTime_ms = 0;

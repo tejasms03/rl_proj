@@ -174,6 +174,12 @@ void GraphicsTask::EnqueueShadowMap(boost::intrusive_ptr<Camera> camera,
   bounding.push_back(plane);
   GetContext().scene3D->GetObjects<Geometry>(e_ObjectType_Geometry,
                                              visibleGeometry, bounding);
+  // rl_project: ground markers ("rl_*" rings) cast no shadow; lying on the
+  // grass they would shadow themselves black.
+  for (auto it = visibleGeometry.begin(); it != visibleGeometry.end();) {
+    if ((*it)->GetName().compare(0, 3, "rl_") == 0) it = visibleGeometry.erase(it);
+    else ++it;
+  }
   // boost::static_pointer_cast<Scene3D>(scene)->GetObjects<Geometry>(e_ObjectType_Geometry,
   // visibleGeometry);
   light->EnqueueShadowMap(camera, visibleGeometry);
