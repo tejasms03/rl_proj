@@ -41,14 +41,18 @@ DEFENDING = {
 }
 TOGGLES = {'l1': A.action_switch}
 # Three states decide what the face buttons do (see _state):
-#   ATTACK    we own the ball, or it is loose          -> kicks
-#   CONTESTED opponents touch it, but it is a duel at   -> kicks (shoot/pass
-#             your feet (you are about as close as the     through the
-#             nearest opponent)                            challenge)
-#   DEFEND    otherwise                                 -> DEFENDING buttons
+#   ATTACK    we own the ball; or it is loose and we    -> kicks
+#             had it last, or you are clearly first to it
+#   CONTESTED opponents touched it moments after we had -> kicks (shoot/pass
+#             it, in a duel at your feet (you are about    through the
+#             as close as the nearest opponent)            challenge)
+#   DEFEND    otherwise (their ball, including the      -> DEFENDING buttons
+#             loose frames between their dribble touches)
 ATTACK, CONTESTED, DEFEND = 'attack', 'contested', 'defend'
 CONTEST_RADIUS_M = 2.0  # ball within this distance of you
 CONTEST_MARGIN_M = 0.5  # and you no further than nearest opponent + this
+CONTEST_MEMORY_STEPS = 50  # "moments after we had it": 1 s at 50 Hz
+LOOSE_LEAD_M = 1.0  # loose ball after their touch: yours if you are this much closer
 _METRES = (54.4, -83.6)  # observation units -> metres (x, y)
 TRIGGERS = {'r2': A.action_sprint, 'l2': A.action_dribble}
 
@@ -65,6 +69,8 @@ class Player(gamepad.Player):
     self._held = {}  # action -> currently held (as last sent)
     self._tapped = set()  # buttons pressed since the last step (even if released)
     self._flicked = False  # right stick is out (one switch per flick)
+    self._last_owner = -1  # last team seen on the ball (0 us, 1 them)
+    self._since_ours = CONTEST_MEMORY_STEPS + 1  # steps since we last had it
 
   def _button(self, name):
     """Held now, or pressed at any moment since the last step (quick taps)."""
@@ -80,8 +86,17 @@ class Player(gamepad.Player):
   def _state(self, observation):
     # Ownership blinks to "nobody" between dribble touches and for incoming
     # balls (the engine queues a kick until the player reaches the ball), and
-    # to the opponents whenever a defender pokes at it in a duel.
-    if observation['ball_owned_team'] != 1:
+    # to the opponents whenever a defender pokes at it in a duel. So a loose
+    # ball belongs to whoever had it last, and the opponents' ball counts as
+    # a duel only right after we had it.
+    owner = observation['ball_owned_team']
+    if owner == 0:
+      self._since_ours = 0
+    else:
+      self._since_ours += 1
+    if owner != -1:
+      self._last_owner = owner
+    if owner == 0:
       return ATTACK
     def dist(position):
       return (((position[0] - ball[0]) * _METRES[0]) ** 2 +
@@ -89,7 +104,10 @@ class Player(gamepad.Player):
     ball = observation['ball']
     mine = dist(observation['left_team'][observation['active']])
     theirs = min(dist(p) for p in observation['right_team'])
-    if mine < CONTEST_RADIUS_M and mine <= theirs + CONTEST_MARGIN_M:
+    if owner == -1 and (self._last_owner != 1 or mine + LOOSE_LEAD_M < theirs):
+      return ATTACK
+    if (self._since_ours <= CONTEST_MEMORY_STEPS and mine < CONTEST_RADIUS_M and
+        mine <= theirs + CONTEST_MARGIN_M):
       return CONTESTED
     return DEFEND
 

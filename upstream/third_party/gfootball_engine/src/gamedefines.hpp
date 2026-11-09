@@ -294,7 +294,10 @@ struct FormationEntry {
         stat_overrides == f.stat_overrides &&
         height == f.height &&
         preferred_foot == f.preferred_foot &&
-        name == f.name;
+        name == f.name &&
+        skin == f.skin &&
+        hair_style == f.hair_style &&
+        hair_color == f.hair_color;
   }
   // rl_project P1: stat override by PlayerStat index; negative = keep the
   // built-in profile value. Sized lazily so untouched entries stay empty.
@@ -333,6 +336,10 @@ struct FormationEntry {
   float height = -1.0f;  // metres; <= 0 keeps the built-in profile height
   int preferred_foot = 0;  // 0 = unspecified (upstream), 1 = right, 2 = left
   std::string name;  // display name; empty keeps the built-in one
+  // Appearance (display only): 0 / empty keeps the built-in look.
+  int skin = 0;  // skin tone 1 (lightest) - 4 (darkest)
+  std::string hair_style;  // bald, short01, short02, medium01, medium02, long01, long02
+  std::string hair_color;  // black, brown, darkblonde, blonde, red
 };
 
 struct PlayerImage {

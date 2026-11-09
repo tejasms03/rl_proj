@@ -289,6 +289,18 @@ class Pause:
         return True
 
 
+def _player_entry(text):
+    """'Name' or 'Name:skin:hair_style:hair_color' (skin 1 lightest - 4 darkest).
+    A named player keeps short hair unless told otherwise, so a built-in long
+    hairstyle never ends up on a real player's name."""
+    name, *look = [part.strip() for part in text.split(":")]
+    entry = {"name": name, "hair_style": "short01"}
+    for key, value in zip(("skin", "hair_style", "hair_color"), look):
+        if value:
+            entry[key] = int(value) if key == "skin" else value
+    return entry
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -308,12 +320,21 @@ def main() -> None:
     parser.add_argument("--away", default="Real Madrid", help="the AI team's name")
     parser.add_argument("--home-short", default="FCB", help="3-letter scoreboard name")
     parser.add_argument("--away-short", default="RMA")
+    kits = ["barca_home", "madrid_home", "madrid_away", "red", "sky", "builtin"]
+    parser.add_argument("--home-kit", default="barca_home", choices=kits,
+                        help="your kit (made by grf_tools/make_kits.py; builtin = GRF's yellow)")
+    parser.add_argument("--away-kit", default="madrid_home", choices=kits)
     parser.add_argument("--home-players", help="comma-separated names in formation order "
-                        "(goalkeeper first), e.g. \"Ter Stegen,Kounde,...\"; blanks keep defaults")
+                        "(goalkeeper first), e.g. \"Ter Stegen,Kounde,...\"; blanks keep defaults. "
+                        "Optional look per player: Name:skin:hair_style:hair_color, skin 1 "
+                        "(lightest) to 4 (darkest), hair bald/short01/short02/medium01/medium02, "
+                        "colour black/brown/darkblonde/blonde/red")
     parser.add_argument("--away-players")
     parser.add_argument("--no-injury-time", action="store_true",
                         help="no half time / added time: one continuous 90 minutes")
     parser.add_argument("--no-replays", action="store_true", help="no goal / instant replays")
+    parser.add_argument("--watch", action="store_true",
+                        help="spectator mode: the AI plays both teams, even with a controller connected")
     parser.add_argument("--test", action="store_true", help="check controller buttons")
     args = parser.parse_args()
     if args.test:
@@ -321,8 +342,10 @@ def main() -> None:
         return
 
     pygame.joystick.init()
-    spectate = pygame.joystick.get_count() == 0
-    if spectate:
+    spectate = args.watch or pygame.joystick.get_count() == 0
+    if args.watch:
+        print("Spectator mode: the AI plays both teams.", flush=True)
+    elif spectate:
         print("No controller found (pair or plug it in, then restart).\n"
               "Spectator mode: the AI plays both teams.", flush=True)
     values = {
@@ -339,14 +362,17 @@ def main() -> None:
         values["use_magnet"] = False
     if not args.no_injury_time:
         values["injury_time"] = True
-    for side, name, short, players in (("left", args.home, args.home_short, args.home_players),
-                                       ("right", args.away, args.away_short, args.away_players)):
+    for side, name, short, players, kit in (
+            ("left", args.home, args.home_short, args.home_players, args.home_kit),
+            ("right", args.away, args.away_short, args.away_players, args.away_kit)):
+        if kit != "builtin":
+            values[f"{side}_team_kit"] = kit
         if name:
             values[f"{side}_team_name"] = name
         if short:
             values[f"{side}_team_short_name"] = short
         if players:
-            names = {str(i): {"name": n.strip()} for i, n in enumerate(players.split(",")) if n.strip()}
+            names = {str(i): _player_entry(n) for i, n in enumerate(players.split(",")) if n.strip()}
             values.setdefault("player_overrides", {})[side] = names
     if not args.upstream:
         values.update(V1, pitch_condition=args.pitch, pass_power_assist=args.power_assist,

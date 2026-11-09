@@ -160,6 +160,8 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       shortName = "";
     }
     if (!custom_short.empty()) shortName = custom_short;
+    const std::string& kit = left ? scenario.left_team_kit : scenario.right_team_kit;
+    if (!kit.empty()) kit_url = "images_teams/rl/" + kit;
   }
 
   if (shortName.compare("") == 0) {
@@ -271,6 +273,9 @@ TeamData::TeamData(int teamDatabaseID, const std::vector<FormationEntry> &f) {
       formation[x].height = f[x].height;
       formation[x].preferred_foot = f[x].preferred_foot;
       formation[x].name = f[x].name;
+      formation[x].skin = f[x].skin;
+      formation[x].hair_style = f[x].hair_style;
+      formation[x].hair_color = f[x].hair_color;
     }
   }
 

@@ -552,6 +552,9 @@ void PlayerData::ApplyOverrides(const FormationEntry& entry) {
     firstName = "";
     lastName = entry.name;
   }
+  if (entry.skin >= 1 && entry.skin <= 4) skinColor = entry.skin;
+  if (!entry.hair_style.empty()) hairStyle = entry.hair_style;
+  if (!entry.hair_color.empty()) hairColor = entry.hair_color;
   UpdateValues();
 }
 

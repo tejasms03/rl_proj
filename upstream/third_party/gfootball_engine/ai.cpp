@@ -247,6 +247,8 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("left_team_name", &ScenarioConfig::left_team_name)
       .def_readwrite("right_team_name", &ScenarioConfig::right_team_name)
       .def_readwrite("left_team_short_name", &ScenarioConfig::left_team_short_name)
+      .def_readwrite("left_team_kit", &ScenarioConfig::left_team_kit)
+      .def_readwrite("right_team_kit", &ScenarioConfig::right_team_kit)
       .def_readwrite("right_team_short_name", &ScenarioConfig::right_team_short_name)
       .def_readwrite("deterministic", &ScenarioConfig::deterministic)
       .def_readwrite("end_episode_on_score",
@@ -278,6 +280,9 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("height", &FormationEntry::height)
       .def_readwrite("preferred_foot", &FormationEntry::preferred_foot)
       .def_readwrite("name", &FormationEntry::name)
+      .def_readwrite("skin", &FormationEntry::skin)
+      .def_readwrite("hair_style", &FormationEntry::hair_style)
+      .def_readwrite("hair_color", &FormationEntry::hair_color)
       .def("set_stat", &FormationEntry::SetStatOverride)
       .def("get_stat", &FormationEntry::GetStatOverride);
 

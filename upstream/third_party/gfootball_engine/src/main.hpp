@@ -266,6 +266,9 @@ struct ScenarioConfig {
   // Display names (empty = built-in); short names show on the scoreboard.
   std::string left_team_name, right_team_name;
   std::string left_team_short_name, right_team_short_name;
+  // Kit textures (empty = built-in): name of a kit in
+  // data/databases/default/images_teams/rl, made by grf_tools/make_kits.py.
+  std::string left_team_kit, right_team_kit;
   int second_half = 999999999;
 
  private:

@@ -43,6 +43,7 @@ PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
                   'situational_accuracy', 'use_magnet',
                   'kick_windup_speed', 'left_team_name', 'right_team_name',
                   'left_team_short_name', 'right_team_short_name',
+                  'left_team_kit', 'right_team_kit',
                   'injury_time', 'pass_reach_assist', 'shot_power_floor',
                   'defend_auto_switch', 'switch_to_ball', 'jockey', 'auto_receive',
                   'air_ball_switch', 'landing_marker', 'selection_ring')
@@ -52,8 +53,12 @@ BALL_PACES = {'game': 0, 'realistic': 1}
 NAMED_SWITCHES = {'pitch_condition': PITCH_CONDITIONS, 'ball_pace': BALL_PACES}
 
 
+HAIR_STYLES = ('bald', 'short01', 'short02', 'medium01', 'medium02', 'long01', 'long02')
+HAIR_COLORS = ('black', 'brown', 'darkblonde', 'blonde', 'red')
+
+
 def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None,
-                         name=None):
+                         name=None, skin=None, hair_style=None, hair_color=None):
   """rl_project P1: validate and store per-player overrides on an entry."""
   for name, value in (stats or {}).items():
     if name not in PLAYER_STATS:
@@ -73,6 +78,19 @@ def _SetPlayerAttributes(player, stats=None, height=None, preferred_foot=None,
     player.preferred_foot = PREFERRED_FOOT[preferred_foot]
   if name is not None:
     player.name = str(name)
+  # Appearance (display only).
+  if skin is not None:
+    if skin not in (1, 2, 3, 4):
+      raise ValueError('skin must be 1 (lightest) to 4 (darkest), got %r' % (skin,))
+    player.skin = int(skin)
+  if hair_style is not None:
+    if hair_style not in HAIR_STYLES:
+      raise ValueError('hair_style must be one of %s' % (HAIR_STYLES,))
+    player.hair_style = hair_style
+  if hair_color is not None:
+    if hair_color not in HAIR_COLORS:
+      raise ValueError('hair_color must be one of %s' % (HAIR_COLORS,))
+    player.hair_color = hair_color
 
 FLAGS = flags.FLAGS
 
@@ -139,7 +157,8 @@ class Scenario(object):
     """rl_project P1: apply the `player_overrides` env option to any scenario.
 
     Format: {'left' | 'right': {slot | '*': {'stats': {...}, 'height': m,
-    'preferred_foot': 'left' | 'right', 'name': str}}}, where slot is the player's index in
+    'preferred_foot': 'left' | 'right', 'name': str, 'skin': 1-4,
+    'hair_style': str, 'hair_color': str}}}, where slot is the player's index in
     the order the scenario added it and '*' means every player on that side.
     """
     overrides = (self._config['player_overrides']

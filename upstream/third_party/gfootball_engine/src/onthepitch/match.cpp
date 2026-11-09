@@ -144,8 +144,10 @@ Match::Match(MatchData *matchData, const std::vector<AIControlledKeyboard *> &co
   dynamicNode->AddObject(officials->GetYellowCardGeom());
   dynamicNode->AddObject(officials->GetRedCardGeom());
   // rl_project: ground rings (selection_ring, landing_marker).
-  for (int r = 0; r < 2; r++) {
-    const std::string name = r == 0 ? "selection_ring" : "landing_ring";
+  const char *ringNames[] = {"selection_ring", "selection_ring_press",
+                             "selection_ring_jockey", "landing_ring"};
+  for (int r = 0; r < 4; r++) {
+    const std::string name = ringNames[r];
     boost::intrusive_ptr<Geometry> ring = new Geometry("rl_" + name);
     GetScene3D()->CreateSystemObjects(ring);
     ring->SetGeometryData(GetContext().geometry_manager.Fetch(
@@ -153,7 +155,7 @@ Match::Match(MatchData *matchData, const std::vector<AIControlledKeyboard *> &co
     ring->SetLocalMode(e_LocalMode_Absolute);
     ring->SetPosition(Vector3(0, 0, -10));
     dynamicNode->AddObject(ring);
-    (r == 0 ? selectionRingGeom : landingRingGeom) = ring;
+    (r < 3 ? selectionRingGeoms[r] : landingRingGeom) = ring;
   }
 
 
@@ -1148,11 +1150,13 @@ void Match::Put() {
 
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);
   DO_VALIDATION;
-  selectionRingPlaced = false;
+  selectionRingShown = -1;
   teams[first_team]->Put2D(reverse);
   teams[second_team]->Put2D(!reverse);
-  if (!selectionRingPlaced && selectionRingGeom) {
-    selectionRingGeom->SetPosition(Vector3(0, 0, -10), false);
+  for (int r = 0; r < 3; r++) {
+    if (r != selectionRingShown && selectionRingGeoms[r]) {
+      selectionRingGeoms[r]->SetPosition(Vector3(0, 0, -10), false);
+    }
   }
   PutLandingMarker();
   GetDynamicNode()->RecursiveUpdateSpatialData(e_SpatialDataType_Both);  // ring moves
@@ -1228,11 +1232,12 @@ void Match::StartSecondHalfClock() {
       GetContext().step + StepsForClock(kHalf_ms + 10 * 60000, matchDurationFactor);
 }
 
-void Match::PlaceSelectionRing(const Vector3 &feet) {
+void Match::PlaceSelectionRing(const Vector3 &feet, int mode) {
   DO_VALIDATION;
-  if (!GetScenarioConfig().selection_ring || !selectionRingGeom) return;
-  selectionRingPlaced = true;
-  selectionRingGeom->SetPosition(Vector3(feet.coords[0], feet.coords[1], 0.03f), false);
+  if (mode < 0 || mode > 2) mode = 0;
+  if (!GetScenarioConfig().selection_ring || !selectionRingGeoms[mode]) return;
+  selectionRingShown = mode;
+  selectionRingGeoms[mode]->SetPosition(Vector3(feet.coords[0], feet.coords[1], 0.03f), false);
 }
 
 void Match::PutLandingMarker() {

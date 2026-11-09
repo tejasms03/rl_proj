@@ -17,6 +17,8 @@
 
 #include "referee.hpp"
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 #include "../scene/objectfactory.hpp"
 #include "match.hpp"
@@ -297,6 +299,7 @@ void Referee::PrepareSetPiece(e_GameMode setPiece) {
   buffer.taker = match->GetTeam(buffer.teamID)->GetController()->GetPieceTaker();
   // Reset offside state.
   offsidePlayers.clear();
+  offsidePlayersX.clear();
 }
 
 void Referee::AlterSetPiecePrepareTime(unsigned long newTime_ms) {
@@ -324,8 +327,9 @@ void Referee::BallTouched() {
     DO_VALIDATION;  // disable if only 1 player: that's debug mode with only
                     // keeper
     auto ballOwner = match->GetLastTouchPlayer();
-    for (auto p : offsidePlayers) {
+    for (size_t k = 0; k < offsidePlayers.size(); k++) {
       DO_VALIDATION;
+      auto p = offsidePlayers[k];
       if (p == ballOwner) {
         DO_VALIDATION;
         foul.advantage = false;
@@ -344,12 +348,23 @@ void Referee::BallTouched() {
           buffer.teamID = 1 - lastTouchTeamID;
           buffer.active = true;
           match->SpamMessage("offside!");
+          if (std::getenv("GRF_LOG_OFFSIDE") && k < offsidePlayersX.size()) {  // rl_project diagnostics
+            const float side = -match->GetTeam(lastTouchTeamID)->GetDynamicSide();
+            std::fprintf(stderr,
+                "OFFSIDE t=%lu team=%d at_pass: receiver_x=%.2f line_x=%.2f passer_x=%.2f "
+                "(receiver ahead of line by %.2f m) now_x=%.2f\n",
+                match->GetActualTime_ms(), lastTouchTeamID,
+                offsidePlayersX[k] * side, offsideLineAtTouch * side, offsidePasserX * side,
+                (offsidePlayersX[k] - offsideLineAtTouch) * side,
+                ballOwner->GetPosition().coords[0] * side);
+          }
         }
       }
     }
   }
 
   offsidePlayers.clear();
+  offsidePlayersX.clear();
 
   if (match->IsInPlay() &&
       (buffer.active == false ||
@@ -362,6 +377,10 @@ void Referee::BallTouched() {
     std::vector<Player*> players;
     Team *team = match->GetTeam(lastTouchTeamID);
     team->GetActivePlayers(players);
+    offsideLineAtTouch = offside;
+    if (team->GetLastTouchPlayer()) {
+      offsidePasserX = team->GetLastTouchPlayer()->GetPosition().coords[0];
+    }
     for (auto player : players) {
       DO_VALIDATION;
       if (player != team->GetLastTouchPlayer()) {
@@ -370,6 +389,7 @@ void Referee::BallTouched() {
             offside * team->GetDynamicSide()) {
           DO_VALIDATION;
           offsidePlayers.push_back(player);
+          offsidePlayersX.push_back(player->GetPosition().coords[0]);
         }
       }
     }

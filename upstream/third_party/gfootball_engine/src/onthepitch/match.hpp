@@ -126,7 +126,8 @@ class Match {
     void ProcessInjuryTime();
     void StartSecondHalfClock();
     void PutLandingMarker();
-    void PlaceSelectionRing(const Vector3 &feet);
+    // mode: 0 normal, 1 pressing (O / X held), 2 jockeying (L2 held).
+    void PlaceSelectionRing(const Vector3 &feet, int mode);
     unsigned long GetActualTime_ms() const { return actualTime_ms; }
     void BumpActualTime_ms(unsigned long time);
     void UpdateIngameCamera();
@@ -210,8 +211,8 @@ class Match {
     // rl_project landing_marker / selection_ring: flat ring meshes on the
     // grass (media/objects/rl), parked below the pitch when not shown.
     boost::intrusive_ptr<Geometry> landingRingGeom;
-    boost::intrusive_ptr<Geometry> selectionRingGeom;
-    bool selectionRingPlaced = false;
+    boost::intrusive_ptr<Geometry> selectionRingGeoms[3];  // by ring mode
+    int selectionRingShown = -1;  // mode placed this frame, -1 none
     unsigned long messageCaptionRemoveTime_ms = 0;
     unsigned long matchTime_ms = 0;
     float stoppageMinutes = 0.0f;

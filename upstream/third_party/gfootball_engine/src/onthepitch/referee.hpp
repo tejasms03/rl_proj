@@ -86,6 +86,10 @@ class Referee {
 
     // Players on offside position at the time of the last ball touch.
     std::vector<Player*> offsidePlayers;
+    // rl_project: diagnostics for GRF_LOG_OFFSIDE (not part of the state).
+    std::vector<float> offsidePlayersX;
+    float offsideLineAtTouch = 0.0f;
+    float offsidePasserX = 0.0f;
 
     Foul foul;
     const bool animations;

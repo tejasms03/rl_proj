@@ -144,6 +144,7 @@ class Player : public PlayerBase {
     TacticalPlayerSituation tacticalSituation;
 
     bool buf_selectionRing = false;  // rl_project selection_ring
+    int buf_selectionRingMode = 0;   // see Match::PlaceSelectionRing
     bool buf_nameCaptionShowCondition = false;
     Vector3 buf_playerColor;
 

@@ -18,9 +18,13 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "objects", "rl")
 
 RINGS = {
-    # name: (inner radius m, outer radius m, colour RGB)
-    "selection_ring": (0.55, 0.75, (90, 220, 255)),
-    "landing_ring": (0.75, 1.0, (255, 225, 40)),
+    # name: (inner radius m, outer radius m, colour RGB, dashed)
+    "selection_ring": (0.55, 0.75, (90, 220, 255), False),
+    # Defending feedback (see Match::PlaceSelectionRing): pressing (O / X
+    # held) is a thick orange ring, jockeying (L2) a wide dashed white one.
+    "selection_ring_press": (0.45, 0.85, (255, 110, 30), False),
+    "selection_ring_jockey": (0.9, 1.05, (240, 240, 240), True),
+    "landing_ring": (0.75, 1.0, (255, 225, 40), False),
 }
 SEGMENTS = 40
 
@@ -30,9 +34,14 @@ def write_bmp(path, rgb, size=16):
     discards pixels with alpha < 0.12, and 24-bit BMPs have no alpha, so the
     ring vanished (leaving only its shadow) unless alpha is written."""
     r, g, b = rgb
-    pixels = bytes([b, g, r, 255]) * (size * size)
+    write_bmp_pixels(path, bytes([b, g, r, 255]) * (size * size), size, size)
+
+
+def write_bmp_pixels(path, pixels, width, height):
+    """32-bit BMP (V4 header, so the alpha channel is read) from BGRA bytes,
+    bottom row first."""
     masks = struct.pack("<IIII", 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)
-    info = struct.pack("<IiiHHIIiiII", 108, size, size, 1, 32, 3, len(pixels), 2835, 2835, 0, 0)
+    info = struct.pack("<IiiHHIIiiII", 108, width, height, 1, 32, 3, len(pixels), 2835, 2835, 0, 0)
     info += masks + b"BGRs" + bytes(36) + bytes(12)  # V4: masks, colour space, endpoints, gamma
     offset = 14 + len(info)
     header = struct.pack("<2sIHHI", b"BM", offset + len(pixels), 0, 0, offset)
@@ -46,7 +55,7 @@ def map_block(kind, number, bitmap):
             '\t\t\t*BITMAP "%s"' % bitmap, "\t\t\t*MAP_TYPE Screen", "\t\t}"]
 
 
-def ring_ase(name, inner, outer):
+def ring_ase(name, inner, outer, dashed=False):
     verts = []
     for i in range(SEGMENTS):
         a = 2 * math.pi * i / SEGMENTS
@@ -54,6 +63,8 @@ def ring_ase(name, inner, outer):
         verts.append((outer * math.cos(a), outer * math.sin(a), 0.0))
     faces = []
     for i in range(SEGMENTS):
+        if dashed and (i // 2) % 2:
+            continue  # gap: 2 segments on, 2 off
         a, b = 2 * i, 2 * i + 1
         c, d = (2 * i + 2) % (2 * SEGMENTS), (2 * i + 3) % (2 * SEGMENTS)
         faces += [(a, b, d), (a, d, c)]          # facing up
@@ -125,9 +136,9 @@ def ring_ase(name, inner, outer):
 
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
-    for name, (inner, outer, rgb) in RINGS.items():
+    for name, (inner, outer, rgb, dashed) in RINGS.items():
         with open(os.path.join(OUT, name + ".ase"), "w") as f:
-            f.write(ring_ase(name, inner, outer))
+            f.write(ring_ase(name, inner, outer, dashed))
         write_bmp(os.path.join(OUT, name + ".bmp"), rgb)
         print("wrote", name)
 

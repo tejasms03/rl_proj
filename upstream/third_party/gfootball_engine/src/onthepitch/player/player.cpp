@@ -23,6 +23,7 @@
 #include "../team.hpp"
 
 #include "controller/elizacontroller.hpp"
+#include "controller/humancontroller.hpp"
 #include "controller/strategies/strategy.hpp"
 
 #include "../../main.hpp"
@@ -349,6 +350,17 @@ void Player::PreparePutBuffers() {
     int controlled = 0;
     for (auto mate : mates) controlled += mate->ExternalControllerActive() ? 1 : 0;
     buf_selectionRing = controlled == 1;
+    // Defending feedback: the ring shows which defensive button is live.
+    buf_selectionRingMode = 0;
+    AIControlledKeyboard *hid = ExternalController()->GetHIDevice();
+    if (hid && !team->HasPossession() && match->IsInPlay() && !match->IsInSetPiece()) {
+      if (hid->GetButton(e_ButtonFunction_Pressure) ||
+          hid->GetButton(e_ButtonFunction_TeamPressure)) {
+        buf_selectionRingMode = 1;
+      } else if (hid->GetButton(e_ButtonFunction_Dribble)) {
+        buf_selectionRingMode = 2;
+      }
+    }
   }
   if (team->GetHumanGamerCount() == 0) buf_nameCaptionShowCondition = team->GetDesignatedTeamPossessionPlayer() == this;
   e_PlayerColor playerColor = team->GetPlayerColor(this);
@@ -397,7 +409,7 @@ void Player::Put2D(bool mirror) {
   if (buf_selectionRing) {  // rl_project selection_ring
     Vector3 feet = GetGeomPosition();
     if (mirror) feet *= Vector3(-1, -1, 0);
-    match->PlaceSelectionRing(Vector3(feet.coords[0], feet.coords[1], 0));
+    match->PlaceSelectionRing(Vector3(feet.coords[0], feet.coords[1], 0), buf_selectionRingMode);
   }
   if (buf_nameCaptionShowCondition) {
     DO_VALIDATION;
