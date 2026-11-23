@@ -225,7 +225,7 @@ Decided with the user: the game should feel like modern FIFA / EA FC, the agents
 | 0. Freeze environment | Oct 12 – Oct 25 | the spec above, tag v1.0 | Claude; the user designs the agent interface |
 | 1. RL foundations | Oct 19 – Nov 1 | own PPO with action + power heads, parallel envs, logging | user |
 | 2. 11-player agents | Nov 2 – Nov 15 | MAPPO with shared weights, per-player stats/role inputs, randomized archetypes/tactics, curriculum | user |
-| **Checkpoint** | **Nov 15** | beats the easy built-in AI in 11v11, else fall back to 5-vs-5 | |
+| **Checkpoint** | **Nov 15** | beats the easy built-in AI in 11v11 (11v11 is final: no 5-vs-5 fallback) | |
 | 3. Style / player conditioning | Nov 16 – Nov 29 | style-conditioned vs player-centric training | user |
 | 4. Manager | Nov 30 – Dec 13 | manager picks tactics and archetypes every ~5 game-minutes | user |
 | 5. Experiments, write-up | Dec 14 – Dec 24 | style × player grid, chemistry via passing networks, demo | user |

@@ -180,11 +180,13 @@ No reward for picking a "correct" counter; outcomes only.
 
 ## 4. Stages and exit criteria
 
+All matches and every submitted result are full 11v11 (decided 2026-11-17; no 5v5 fallback). Drills are small on purpose: they teach one skill or duty at a time.
+
 | Stage | Trains | Opponents | Instructions | Exit when |
 |---|---|---|---|---|
 | 0. Duty drills | player policy | scripted / built-in AI in small drills | one duty at a time: press + cover 2v2, hold-the-line 4v3, support rondo 4v2, run-in-behind 2v1, mark 1v1, recover after turnover | each v1 duty test true ≥ 70 % of drill time |
-| 1a. 5v5 basics | player policy | built-in AI easy → hard | random duty assignments (v1 duties), re-drawn every 30-60 s | beats built-in hard AI over 100 games (mid-November go/no-go) |
-| 1b. 11v11 basics | player policy | built-in AI + past snapshots | random assignments incl. the 6 presets | beats hard AI; duties satisfied ≥ 70 % |
+| 1a. 11v11 basics | player policy | built-in AI easy → hard | none at first (basic football), then random duty assignments (v1 duties), re-drawn every 30-60 s | beats built-in hard AI over 100 games |
+| 1b. 11v11 + self-play | player policy | built-in AI + past snapshots | random assignments incl. the 6 presets | beats hard AI; duties satisfied ≥ 70 % |
 | 2. Tactics are real | player policy | + preset-conditioned self-play | random mid-match preset switches, set-play drills, later v2 duties | switching preset measurably changes play (e.g. false nine avg x drops ≥ 8 m; high press regains in their half ×2) with ≤ 10 % win-rate loss |
 | 3. Manager v1 | manager (players frozen) | pool: hard AI, preset-conditioned self-play that switches presets mid-match, imitation model of the user | manager-chosen preset | beats every fixed preset on the pool; reacts to an opponent style switch within 60 s |
 | 3b. Manager v2-v3 | manager | same + held-out styles | slot edits, settings, swaps, set plays | beats manager v1 |
@@ -193,6 +195,28 @@ No reward for picking a "correct" counter; outcomes only.
 **Preset-conditioned self-play:** the opponent is the same player policy given a random preset that changes mid-match; the main source of varied opponents for the manager.
 
 **Imitation opponent:** gamepad matches already log every input (replay system); a behaviour-cloning model trained on them gives a "plays like the user" opponent.
+
+### 4.1 Shortcuts: the game's AI and the duty lab (decided 2026-11-18)
+
+Ideas ranked by time saved for the effort:
+
+| Rank | Idea | Saves | Effort | Catch |
+|---|---|---|---|---|
+| 1 | **The AI plays the ball:** a player of ours on the ball is handed to the game's AI (`builtin_ai`) for that frame; the policy controls everyone off the ball. Later the policy takes the ball back. | High: duty training starts at once; on-ball skill, the slowest to learn, comes later | One rule in the training loop | Until the hand-back, goals and wins are partly the AI's: report them that way. Duty results are fully ours. |
+| 2 | **Clone the lab scripts first**, then PPO: supervised pretraining on games of the rule-based team (below) | High: skips the aimless early phase for every duty | Record games, short supervised step | Players start at script level, which the lab showed is weak for some duties (screen lane); RL must improve on it |
+| 3 | The AI as opponent, difficulty easy → hard | Free curriculum | None (already in stage 1a) | |
+| 4 | The AI covers moments a duty doesn't (loose balls, general positioning) inside the rule-based team | A stronger teacher and partner | Low (the lab does it) | |
+| 5 | Clone the game's AI | General play | High | `builtin_ai` switches the player's controller off and the AI moves him directly, so there is no record of which command it chose; commands would have to be guessed from movement. Rank 1 gets the AI's on-ball play anyway. Skip. |
+
+**Plan: ranks 1 + 2 together.** The duty lab's scripted duties off the ball (`grf_tools/duty_lab/duties.py`) plus the AI on the ball make a complete **rule-based team**. It serves three jobs: the cloning teacher (its commands are known exactly), the manager's first training partner (stage 3 can start before player training finishes), and a baseline the trained team has to beat.
+
+**Lab findings that apply to training:**
+- **Possession memory.** The engine reports nobody on the ball between a dribbler's touches. Duty checks, duty rewards and "who has it" inputs need the lab's memory (a loose ball stays the last owner's for up to 1 s), or they flicker several times a second.
+- **Action set.** The frozen `v3` set has no pressure, team pressure or keeper rush, but the defensive head (§2.2) needs them: train on the full set, or extend `v3`.
+- **Opponent controls are mirrored.** For the right team, "right" is forward. This matters for scripted opponents and self-play code.
+- **Rendering changes the game.** A rendered and an unrendered run from the same seed differ. Never compare one with the other.
+- **Ball-winning duties are scored on outcome** (balls won, time to win), not time in position: their success ends the duty.
+- **Kicks have a wind-up, and a hand-off to the AI cancels them.** A pass or shot happens about 8 frames after the button. Handing the player to the game's AI (`builtin_ai`) in that time resets his controls and the kick silently never happens. With rank 1 (the AI plays the ball), a player whose kick our policy pressed must stay with the policy until the ball has left his foot (the lab waits up to 1 s), not be handed to the AI on the next frame because he still has the ball.
 
 ---
 
@@ -204,7 +228,7 @@ No reward for picking a "correct" counter; outcomes only.
 | 2 | Instruction block in the observation, presets, random assignment sampler | Claude |
 | 3 | Factorised action adapter + masks | Claude |
 | 4 | Reward module, every term logged separately | Claude |
-| 5 | Duty drills (stage 0) and 5v5 scenario | Claude |
+| 5 | Duty drills (stage 0) | Claude |
 | 6 | Parallel env workers, logging, checkpoints | Claude |
 | 7 | PPO: heads, GAE, clipped loss, update loop, MAPPO critic | **user** |
 | 8 | Opponent-tendency extractor (S3) + plan stats (S4) | Claude |
