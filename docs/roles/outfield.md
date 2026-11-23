@@ -113,7 +113,7 @@ Built from what the game ships with plus ours (CONTEXT, and the list we made on 
 | M1 ↔ O2 | Instruction block contract (duty list, targets, dials) | Week 1 |
 | **O2 → everyone** | Env wrapper | Week 1 (critical path) |
 | M2 → you | Rule-based team (cloning teacher, opponent) | Week 2 |
-| G → you | Cloud machines, hours log | Week 1 |
+| M1 → you | Cloud machines, hours log | Week 1 |
 | **You → M1, M2** | Trained, frozen outfield network | Week 3 |
 | **You ↔ G** | Joint training with the keeper; one checkpoint format | Weeks 2-3 |
 

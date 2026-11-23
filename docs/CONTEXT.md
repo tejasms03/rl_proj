@@ -84,9 +84,9 @@ Five people, all with the same RL background. One (the project lead) is the grou
 
 | Group | People | Owns | Shared piece also owned | Task list |
 |---|---|---|---|---|
-| **Manager** | M1 (project lead), M2 | Tactic sheets, duty definitions, the manager network (M1); manager env, what it sees, the rule-based team and style-switching opponents (M2) | PPO core (M1); H2 evaluation (M2) | [`docs/roles/manager.md`](roles/manager.md) |
+| **Manager** | M1 (project lead), M2 | Tactic sheets, duty definitions, the manager network (M1); manager env, what it sees, the rule-based team and style-switching opponents (M2) | PPO core, cloud machines and the GPU-hours log, demo and clips (M1); H2 evaluation (M2) | [`docs/roles/manager.md`](roles/manager.md) |
 | **Outfield** | O1, O2 | One shared network for the 10 outfield players: training and curriculum (O1); env wrapper, duty checks, rewards, drills (O2) | Env wrapper used by everyone (O2); H1/H3 evaluation (O1) | [`docs/roles/outfield.md`](roles/outfield.md) |
-| **Goalkeeper** | G | A **separate keeper network**: keeper duties, drills, rewards, training | Cloud machines and the GPU-hours log; demo and clips | [`docs/roles/goalkeeper.md`](roles/goalkeeper.md) |
+| **Goalkeeper** | G | A **separate keeper network**: keeper duties, drills, rewards, training | — | [`docs/roles/goalkeeper.md`](roles/goalkeeper.md) |
 
 **Critical path:** M1's PPO core and O2's env wrapper (week 1): everything else waits on them. The manager group trains first on M2's rule-based team, so it doesn't wait for trained players.
 

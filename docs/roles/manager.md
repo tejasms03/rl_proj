@@ -47,6 +47,11 @@ YOU: Manager AI  ──instruction block──►  Outfield network (10)  ─┐
 1. **PPO core:** clipped policy loss, value loss, entropy bonus, GAE advantages, rollout buffer, update loop; mixed actions (discrete heads + a Beta distribution for kick power). Test on CartPole and a simple continuous task before football. Used by the manager, outfield and keeper groups.
 2. **Instruction block contract** with O2 (outfield) and G (keeper): the duty list, targets, dials, and the keeper's fields. Freeze it in week 1.
 
+### Shared jobs (moved from the keeper role, 2026-11-23)
+
+- **Cloud machines (week 1):** setup script so a fresh machine can start training in one command; steps-per-second measurement (decides how many seeds and how long 11v11 training can be); checkpoint/resume every 15-30 min; auto-shutdown; the **shared GPU-hours log** (about 300 h in total; see CONTEXT §9).
+- **Demo and clips (week 4):** for the presentation: `elclasico.sh --watch`, duty lab videos, trained-team clips, manager decision logs.
+
 ### B. Football content (week 1-2)
 
 3. **Duty definitions:** a short, unambiguous definition of every duty (e.g. "press = within 3 m and closing"). Sign off O2's duty checks against them.
@@ -98,7 +103,7 @@ YOU: Manager AI  ──instruction block──►  Outfield network (10)  ─┐
 | **M1 ↔ O2, G** | Instruction block contract | Week 1 |
 | **M2 → O1, G** | Rule-based team (teacher, opponent, baseline) | Week 2 |
 | O1 + G → you | Trained, frozen outfield + keeper networks | Week 3 |
-| G → you | Cloud machines and hours log | Week 1 |
+| **M1 → everyone** | Cloud machines, hours log, speed measurement | Week 1 |
 
 ## Known weak spots to keep in mind
 

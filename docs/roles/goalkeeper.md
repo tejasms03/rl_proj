@@ -6,7 +6,7 @@
 
 ## Your job in one paragraph
 
-You build and train **the goalkeeper's own network**: a separate, smaller AI that plays in goal for our team. It learns where to stand, how to stop shots, when to come off its line, and how to restart play. It takes instructions from the manager like every other player (for example "sweep behind a high line") and plays alongside the outfield network in full 11v11 matches. You also run the cloud machines and make the demo clips.
+You build and train **the goalkeeper's own network**: a separate, smaller AI that plays in goal for our team. It learns where to stand, how to stop shots, when to come off its line, and how to restart play. It takes instructions from the manager like every other player (for example "sweep behind a high line") and plays alongside the outfield network in full 11v11 matches.
 
 ---
 
@@ -87,10 +87,7 @@ The game has **no keeper drills**, so build them from what exists, with our keep
 21. Duty compliance: share of time the keeper's duty check is true.
 22. A few matches against a human with a controller.
 
-### G. Shared jobs you own
-
-23. **Cloud machines:** setup script, steps-per-second measurement, checkpoint/resume, auto-shutdown, and the **shared GPU-hours log** (about 300 h in total; see CONTEXT §9).
-24. **Demo and clips** for the presentation (`elclasico.sh --watch`, duty lab videos, trained-team clips).
+*Cloud machines and demo clips moved to M1 (manager) on 2026-11-23.*
 
 ---
 
@@ -98,11 +95,11 @@ The game has **no keeper drills**, so build them from what exists, with our keep
 
 | From | What | When |
 |---|---|---|
+| M1 | Cloud machines, hours log, speed measurement | Week 1 |
 | M1 | PPO core | Week 1 |
 | M1 | Keeper fields in the instruction block | Week 1 |
 | O2 | Env wrapper (observation, actions, padding, mirroring, possession memory) | Week 1 |
 | O1 | Joint training with the outfield network; checkpoint format | Week 2-3 |
-| **You → everyone** | Cloud machines working, hours log, speed measurement | Week 1 |
 | **You → M2** | A trained keeper for the rule-based team and manager training | Week 3 |
 
 ## Open questions to settle early
