@@ -4,7 +4,7 @@ One observation per controlled player, built from GRF's `raw` observation each s
 
 ## Conventions
 
-- **Metres first.** Raw positions are in odd units: `x_m = x · 54.4`, `y_m = y · −83.6`, `z` already in metres. Raw velocities (`*_direction`) are per step (0.1 s at the default 10 ticks per step), so `v_m/s = Δ_m / 0.1`.
+- **Metres first.** Raw positions are in odd units: `x_m = x · 54.4`, `y_m = y · −83.6`, `z` already in metres. Raw velocities (`*_direction`) are per step (0.1 s at the default 10 ticks per step, which is what we train with; decided 2026-11-23), so `v_m/s = Δ_m / 0.1`. In general `*_direction` covers 1/ticks seconds, so at other settings `v = direction × ticks` per second.
 - **Attack direction.** Every player's observation is "my team attacks toward +x". GRF already mirrors raw observations for agents playing on the right, so with self-play nothing extra is needed. Just never mix the two frames.
 - **Normalization targets roughly [−1, 1]:** positions ÷ (55, 36) (half pitch length and width); player speed ÷ 10; ball speed ÷ 30; heights ÷ 5.
 - **Categories are one-hot.** Roles (10): GK, CB, LB, RB, DM, CM, LM, RM, AM, CF. Game mode (7): normal, kickoff, goal kick, free kick, corner, throw-in, penalty.

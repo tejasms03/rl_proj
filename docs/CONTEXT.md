@@ -118,6 +118,8 @@ Claude (AI assistant) built the engine patches and the duty lab, and reviews; th
 | 2026-11-18 | Shortcuts: the game's AI plays the ball early on + clone the lab scripts (§8) | Biggest time savings for the effort |
 | 2026-11-18 | Ball-winning duties scored on outcome; attacking duties tested with a willing passer (§6) | Time-in-position was the wrong yardstick for them |
 | 2026-11-20 | Preliminary report written | Course requirement |
+| 2026-11-23 | **Step length = the game's default:** 10 ticks per step, one step = 0.1 s (10 decisions per game second) | The game's standard; fewer steps per match than the lab's 0.04 s; `observation_spec.md` is written for it |
+| 2026-11-23 | Cloud machines, GPU-hours log and demo clips moved from the keeper role to M1 | M1 has no early work |
 
 Also: substitutions in this project mean **swapping player archetypes** (manager v3), and **set-piece routines** are planned (manager v3).
 
@@ -244,8 +246,9 @@ These are bugs or traps we hit; the training code must handle them (also in `doc
 3. **Action set.** The frozen `v3` action set has no pressure, team pressure or keeper rush, but our defensive action head needs them. Train on the full set or extend `v3`.
 4. **The other team's controls are mirrored.** For the right-hand team, "right" means forward. Matters for scripted opponents and self-play.
 5. **Rendering changes the game.** A run with video and a run without, from the same seed, play out differently. Never compare one with the other.
-6. **Velocities.** The lab measured that `*_direction` in the observation is the movement over about 0.25 s when the game runs 4 ticks per step (velocity ≈ direction × 4 per second). `docs/observation_spec.md` assumes "per step at 10 ticks": check this before building the observation.
-7. **Video needs the screen awake.** On a Mac, rendering stalls when the display sleeps; use `--no-video` for overnight runs.
+6. **Velocities (settled 2026-11-23).** `*_direction` is the movement over 1/ticks seconds, so **speed per second = direction × ticks per step**. At the default 10 ticks that is exactly one step (0.1 s), as `docs/observation_spec.md` assumes. The lab ran at 4 ticks (0.04 s steps), where direction covers 0.25 s. Measured: fastest player 0.80 m per step at 10 ticks, 0.32 m at 4 ticks (both 8 m/s). Lab figures quoted in steps are 0.04 s steps: the kick wind-up of ~8 lab steps is ~3 steps at 0.1 s.
+8. **One engine per Python process.** Creating a second environment in the same process with a different `physics_steps_per_frame` silently keeps the first setting. Run each setting in its own process.
+9. **Video needs the screen awake.** On a Mac, rendering stalls when the display sleeps; use `--no-video` for overnight runs.
 
 ---
 
