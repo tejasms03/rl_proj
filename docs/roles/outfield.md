@@ -41,7 +41,8 @@ Manager AI  ──instruction block──►  YOU: Outfield network (10 players)
 **Lab findings your code must handle** (CONTEXT §7):
 - **Possession blinks:** keep the last owner for up to 1 s of loose ball, or duty checks flicker.
 - **Kick wind-up:** a kick takes about 8 frames; handing the player to the game's AI in that time cancels it. With shortcut 1, keep a player with our network until the ball has left his foot.
-- **Action set:** use the full set (or extend `v3`): the defensive head needs pressure, team pressure and keeper rush.
+- **Action set `v4`** (decided 2026-11-23): `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure` and their release buttons (29). `sticky_actions` has 13 entries.
+- **Magnet off** (`use_magnet: false`): players go exactly where the network sends them.
 - **Mirrored side:** for the right-hand team, "right" is forward; one wrapper makes both sides look like "we attack to the right".
 - **Velocity units:** the lab measured `*_direction` ≈ movement over 0.25 s at 4 ticks per step; `docs/observation_spec.md` assumes per step at 10 ticks. Check before freezing the observation.
 - **Rendering changes the game:** compare rendered runs only with rendered runs.
@@ -56,7 +57,7 @@ Manager AI  ──instruction block──►  YOU: Outfield network (10 players)
 2. **Padding:** scenes with fewer than 11 players per side (academy drills) fill empty slots with zeros + an "absent" flag; the critic must cope too.
 3. **Mirroring:** our network on either side sees "we attack to the right", and its actions are mirrored back.
 4. **Possession memory** (1 s) in everything that asks "who has the ball".
-5. **Action heads → game commands:** move direction (stop + 16), speed (walk / sprint / close control, sent as sticky toggles on change), ball action, defensive action, kick power; one button per step; masks (ball actions only near the ball, defensive actions only when they have it, keeper rush keeper only); the kick wind-up rule.
+5. **Action heads → game commands:** move direction (stop + 16), speed (walk / sprint / close control, sent as sticky toggles on change), ball action, defensive action, kick power; one button per step; masks (ball actions only near the ball, defensive actions only when they have it, keeper rush outfield only: it tells the game's AI keeper to come out); the kick wind-up rule.
 6. **Parallel games:** many games at once (one per CPU core), batching observations for the GPU.
 
 ### B. Duty checks and rewards (weeks 1-2)
@@ -113,7 +114,7 @@ Built from what the game ships with plus ours (CONTEXT, and the list we made on 
 | M1 ↔ O2 | Instruction block contract (duty list, targets, dials) | Week 1 |
 | **O2 → everyone** | Env wrapper | Week 1 (critical path) |
 | M2 → you | Rule-based team (cloning teacher, opponent) | Week 2 |
-| G → you | Cloud machines, hours log | Week 1 |
+| M1 → you | Cloud machines, hours log | Week 1 |
 | **You → M1, M2** | Trained, frozen outfield network | Week 3 |
 | **You ↔ G** | Joint training with the keeper; one checkpoint format | Weeks 2-3 |
 

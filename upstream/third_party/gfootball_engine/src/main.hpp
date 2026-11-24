@@ -171,6 +171,7 @@ struct ScenarioConfig {
     state->process(air_ball_switch);
     state->process(landing_marker);
     state->process(selection_ring);
+    state->process(keeper_auto_save);
   }
 
   void ProcessState(EnvState* state) {
@@ -263,6 +264,10 @@ struct ScenarioConfig {
   bool landing_marker = false;
   // Glowing ring on the grass under the player you control (display only).
   bool selection_ring = false;
+  // rl_project (2026-11-23): a keeper under agent/human control dives and
+  // saves on his own, using the built-in keeper's save logic (upstream only
+  // runs it for AI-controlled keepers). Movement stays with the controller.
+  bool keeper_auto_save = false;
   // Display names (empty = built-in); short names show on the scoreboard.
   std::string left_team_name, right_team_name;
   std::string left_team_short_name, right_team_short_name;

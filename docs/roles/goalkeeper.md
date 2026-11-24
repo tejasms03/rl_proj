@@ -6,7 +6,7 @@
 
 ## Your job in one paragraph
 
-You build and train **the goalkeeper's own network**: a separate, smaller AI that plays in goal for our team. It learns where to stand, how to stop shots, when to come off its line, and how to restart play. It takes instructions from the manager like every other player (for example "sweep behind a high line") and plays alongside the outfield network in full 11v11 matches. You also run the cloud machines and make the demo clips.
+You build and train **the goalkeeper's own network**: a separate, smaller AI that plays in goal for our team. It learns where to stand, how to stop shots, when to come off its line, and how to restart play. It takes instructions from the manager like every other player (for example "sweep behind a high line") and plays alongside the outfield network in full 11v11 matches.
 
 ---
 
@@ -30,7 +30,9 @@ Manager AI  ──instructions──►  Outfield network (10 players)  ─┐
 | **11v11 only** for everything submitted (2026-11-17) | Final keeper results come from full matches. Small drills are fine for training. |
 | **Separate keeper network** (2026-11-20 split) | You own it end to end. It does not share weights with the outfield network, so it needs its own training data. |
 | **Same observation and action format as the outfield** | You use the outfield group's env wrapper (O2) rather than building your own. Agree any keeper-only additions with them. |
-| **Full action set** (lab finding) | The frozen `v3` action set has no *keeper rush*. Training must use the full set or extend `v3`. |
+| **Action set `v4`** (2026-11-23) | `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure` and their releases. *Keeper rush* is masked off for our keeper: it only tells the game's AI keeper to come out. |
+| **Our keeper saves by himself** (2026-11-23) | Your test showed a controlled keeper concedes every shot (the game's save logic is AI-only). The new engine switch **`keeper_auto_save`** fixes it: while a shot is bound for goal the game dives for him; the rest of the time your network moves him. Measured 0/20 conceded with it, 20/20 without. No handoff or shot detector needed. |
+| **Magnet off** (2026-11-23) | `use_magnet: false` for all our players; `keeper_auto_save` gives the keeper the magnet only during a shot. |
 | **Archetypes are randomised** | The squad has **two keeper archetypes**. Train on both, every match drawn at random, so the network handles either. |
 | **Sweeping (D8) works when scripted** (duty lab) | Scripted keeper stands 11.5 m off his line behind a high line (vs 4.3 m for the game's AI) and is in position 69% of the time (vs 19%). Use it as a check and as a teacher. |
 | **Shortcuts** (2026-11-18): AI plays the ball early on; clone the lab scripts first | Early on, distribution can be left to the game's AI while the keeper learns positioning and shot-stopping. Cloning a scripted keeper is a possible warm start. |
@@ -45,7 +47,7 @@ Manager AI  ──instructions──►  Outfield network (10 players)  ─┐
 
 ### A. Find out what the keeper can do (week 1)
 
-1. Check what a keeper controlled by our network can actually do in the engine: does he dive and save on his own once in position, or only when sent a command? What does *keeper rush* do exactly? Write it down; everything else depends on it.
+1. ~~Check what a controlled keeper can do.~~ **Done (Bernard, 2026-11-23):** he can't dive on his own, and *keeper rush* does nothing for him. Fixed with `keeper_auto_save` (see the decisions above). Next: check how much the network's positioning still matters with the switch on (save rate vs where he stands).
 2. Check what the keeper sees in the observation (ball height and speed matter for shots and crosses) and agree any keeper-only features with O2.
 3. Agree the keeper's part of the instruction block with M1 (manager): which duties a keeper can be given (*hold position*, *sweep* with a line height, set-piece positions) and the line-height dial.
 
@@ -87,10 +89,7 @@ The game has **no keeper drills**, so build them from what exists, with our keep
 21. Duty compliance: share of time the keeper's duty check is true.
 22. A few matches against a human with a controller.
 
-### G. Shared jobs you own
-
-23. **Cloud machines:** setup script, steps-per-second measurement, checkpoint/resume, auto-shutdown, and the **shared GPU-hours log** (about 300 h in total; see CONTEXT §9).
-24. **Demo and clips** for the presentation (`elclasico.sh --watch`, duty lab videos, trained-team clips).
+*Cloud machines and demo clips moved to M1 (manager) on 2026-11-23.*
 
 ---
 
@@ -98,11 +97,11 @@ The game has **no keeper drills**, so build them from what exists, with our keep
 
 | From | What | When |
 |---|---|---|
+| M1 | Cloud machines, hours log, speed measurement | Week 1 |
 | M1 | PPO core | Week 1 |
 | M1 | Keeper fields in the instruction block | Week 1 |
 | O2 | Env wrapper (observation, actions, padding, mirroring, possession memory) | Week 1 |
 | O1 | Joint training with the outfield network; checkpoint format | Week 2-3 |
-| **You → everyone** | Cloud machines working, hours log, speed measurement | Week 1 |
 | **You → M2** | A trained keeper for the rule-based team and manager training | Week 3 |
 
 ## Open questions to settle early

@@ -244,6 +244,7 @@ BOOST_PYTHON_MODULE(_gameplayfootball) {
       .def_readwrite("air_ball_switch", &ScenarioConfig::air_ball_switch)
       .def_readwrite("landing_marker", &ScenarioConfig::landing_marker)
       .def_readwrite("selection_ring", &ScenarioConfig::selection_ring)
+      .def_readwrite("keeper_auto_save", &ScenarioConfig::keeper_auto_save)
       .def_readwrite("left_team_name", &ScenarioConfig::left_team_name)
       .def_readwrite("right_team_name", &ScenarioConfig::right_team_name)
       .def_readwrite("left_team_short_name", &ScenarioConfig::left_team_short_name)
