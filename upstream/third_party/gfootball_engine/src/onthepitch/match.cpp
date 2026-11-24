@@ -1457,6 +1457,15 @@ void Match::CheckHumanoidCollision(Player *p1, Player *p2,
       bounceBias += p1->GetStat(physical_balance) * 1.0f;
       bounceBias -= p2->GetStat(physical_balance) * 1.0f;
 
+      if (GetScenarioConfig().skill_stats) {
+        DO_VALIDATION;  // rl_project skill_stats: in a duel for the ball, the
+        // player challenging the man on it wins the contact more often with
+        // a good tackle stat (same scale as balance above).
+        Player *holder = GetDesignatedPossessionPlayer();
+        if (holder && p1->GetTeam() != holder->GetTeam()) bounceBias += p1->GetStat(technical_standingtackle) * 1.0f;
+        if (holder && p2->GetTeam() != holder->GetTeam()) bounceBias -= p2->GetStat(technical_standingtackle) * 1.0f;
+      }
+
       bounceBias = clamp(bounceBias, -1.0f, 1.0f);
       bounceBias *= 0.5f;
 

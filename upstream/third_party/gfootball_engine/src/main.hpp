@@ -172,6 +172,7 @@ struct ScenarioConfig {
     state->process(landing_marker);
     state->process(selection_ring);
     state->process(keeper_auto_save);
+    state->process(skill_stats);
   }
 
   void ProcessState(EnvState* state) {
@@ -268,6 +269,11 @@ struct ScenarioConfig {
   // saves on his own, using the built-in keeper's save logic (upstream only
   // runs it for AI-controlled keepers). Movement stays with the controller.
   bool keeper_auto_save = false;
+  // rl_project (2026-11-24): passing, finishing, heading and tackling stats
+  // change outcomes. Passes, shots and headers get an aim/power error that
+  // shrinks with the matching stat; tackles and slides win the ball cleanly
+  // more often with the tackle stats; heading reach grows with the stat.
+  bool skill_stats = false;
   // Display names (empty = built-in); short names show on the scoreboard.
   std::string left_team_name, right_team_name;
   std::string left_team_short_name, right_team_short_name;

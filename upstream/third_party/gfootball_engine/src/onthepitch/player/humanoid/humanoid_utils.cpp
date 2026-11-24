@@ -425,6 +425,75 @@ Vector3 ApplyHeavyTouch(Ball *ball, Player *player, const Vector3 &touch) {
   return touch * (1.0f - mix) + ball->GetMovement() * mix;
 }
 
+namespace {
+constexpr float kHeaderHeight = 1.3f;  // ball above this at the touch = header
+
+// Symmetric random number in [-1, 1], peaked at 0 (sum of two uniforms).
+float TriangleRandom() { return (boostrandom(-1.0f, 1.0f) + boostrandom(-1.0f, 1.0f)) * 0.5f; }
+}  // namespace
+
+Vector3 ApplySkillStatError(Ball *ball, Player *player, e_FunctionType functionType,
+                            const Vector3 &touch) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().skill_stats) return touch;
+  const bool header = ball->Predict(0).coords[2] > kHeaderHeight;
+  const bool shot = functionType == e_FunctionType_Shot;
+  const bool lofted = functionType == e_FunctionType_HighPass || functionType == e_FunctionType_LongPass;
+  float stat;
+  float maxAngle;  // radians, at stat 0
+  float maxPower;  // fraction of the kick's speed, at stat 0
+  if (header) {
+    stat = player->GetStat(technical_header);
+    maxAngle = 0.35f;
+    maxPower = 0.35f;
+  } else if (shot) {
+    stat = player->GetStat(technical_shot);
+    maxAngle = 0.22f;
+    maxPower = 0.10f;
+  } else if (functionType == e_FunctionType_HighPass) {
+    stat = player->GetStat(technical_highpass);
+    maxAngle = 0.16f;
+    maxPower = 0.30f;
+  } else {
+    stat = player->GetStat(technical_shortpass);
+    maxAngle = lofted ? 0.16f : 0.10f;
+    maxPower = lofted ? 0.25f : 0.15f;
+  }
+  // 1.05 - stat: even a 1.0 player keeps a little error.
+  const float weakness = clamp(1.05f - stat, 0.0f, 1.05f);
+  Vector3 result = touch;
+  result.Rotate2D(TriangleRandom() * maxAngle * weakness);
+  const float scale = 1.0f + TriangleRandom() * maxPower * weakness;
+  result.coords[0] *= scale;
+  result.coords[1] *= scale;
+  if (shot || header) {
+    // Poor finishers and headers also miss high: extra lift, never downward.
+    result.coords[2] += fabs(TriangleRandom()) * 6.0f * weakness;
+  }
+  if (header) {
+    // Weak headers are also weaker.
+    const float power = 0.75f + 0.25f * stat;
+    result.coords[0] *= power;
+    result.coords[1] *= power;
+  }
+  return result;
+}
+
+bool SkillStatCleanTackle(Player *player, e_FunctionType functionType) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().skill_stats) return true;
+  const float stat = functionType == e_FunctionType_Sliding
+                         ? player->GetStat(technical_slidingtackle)
+                         : player->GetStat(technical_standingtackle);
+  return boostrandom(0.0f, 1.0f) < 0.35f + 0.65f * stat;  // 0.3: 55%, 1.0: 100%
+}
+
+float SkillStatHeadingReach(Player *player, float animBallHeight) {
+  DO_VALIDATION;
+  if (!GetScenarioConfig().skill_stats || animBallHeight < kHeaderHeight) return 1.0f;
+  return 0.94f + 0.12f * player->GetStat(technical_header);  // about +-14 cm at 2.4 m
+}
+
 Vector3 GetShotVector(Match *match, Player *player, const Vector3 &nextStartPos,
                       radian nextStartAngle, radian nextBodyAngle,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,

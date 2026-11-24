@@ -527,6 +527,7 @@ void Humanoid::Process() {
           //SetRedDebugPilon(match->GetBall()->Predict(0).Get2D() + touchVec.Get2D() * 0.4f);
         }
 
+        touchVec = ApplySkillStatError(match->GetBall(), CastPlayer(), currentAnim.functionType, touchVec);  // rl_project skill_stats
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
@@ -609,6 +610,7 @@ void Humanoid::Process() {
           spinBias = 1.0f;
         }
 
+        touchVec = ApplySkillStatError(match->GetBall(), CastPlayer(), currentAnim.functionType, touchVec);  // rl_project skill_stats
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
         match->GetBall()->Touch(touchVec);
@@ -627,6 +629,12 @@ void Humanoid::Process() {
                     .GetNormalized() *
                 4.0f +
             Vector3(0, 0, boostrandom(0.5f, 1.5f));  // was 1 .. 6
+        if (!SkillStatCleanTackle(CastPlayer(), e_FunctionType_Interfere)) {
+          DO_VALIDATION;  // rl_project skill_stats: a poor tackle only pokes it loose
+          touchVec = Vector3(boostrandom(-1.0f, 1.0f), boostrandom(-1.0f, 1.0f), 0)
+                         .GetNormalized(Vector3(1, 0, 0)) * boostrandom(3.0f, 7.0f) +
+                     Vector3(0, 0, boostrandom(0.5f, 1.5f));
+        }
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -681,6 +689,10 @@ void Humanoid::Process() {
         Vector3 touchVec = GetVectorFromString(currentAnim.anim->GetVariable("balldirection")).GetRotated2D(spatialState.angle);
         touchVec = touchVec * 6.0f + match->GetBall()->GetMovement() * -0.28f;
         touchVec += Vector3(0, 0, 6);
+        if (!SkillStatCleanTackle(CastPlayer(), e_FunctionType_Sliding)) {
+          DO_VALIDATION;  // rl_project skill_stats: a poor slide sends it anywhere
+          touchVec.Rotate2D(boostrandom(-pi, pi));
+        }
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
@@ -1999,7 +2011,8 @@ signed int Humanoid::GetBestCheatableAnimID(const DataSet &sortedDataSet, bool u
       } else {
         animBallPos = (animBallPos - animBodyPos) + positions_ret.at(animTouchFrame).GetRotated2D(-spatialState.angle);
       }
-      animBallPos.coords[2] = animBallHeight * (playerHeight / defaultPlayerHeight);
+      animBallPos.coords[2] = animBallHeight * (playerHeight / defaultPlayerHeight) *
+                              SkillStatHeadingReach(CastPlayer(), animBallHeight);  // rl_project skill_stats
 
 
       // now pick the ballPos from the previous 9ms that is closest to animBallPos. this is to emulate a continuous 'close enough?'-check instead of a 'single moment' check.
