@@ -120,6 +120,10 @@ Claude (AI assistant) built the engine patches and the duty lab, and reviews; th
 | 2026-11-20 | Preliminary report written | Course requirement |
 | 2026-11-23 | **Step length = the game's default:** 10 ticks per step, one step = 0.1 s (10 decisions per game second) | The game's standard; fewer steps per match than the lab's 0.04 s; `observation_spec.md` is written for it |
 | 2026-11-23 | Cloud machines, GPU-hours log and demo clips moved from the keeper role to M1 | M1 has no early work |
+| 2026-11-23 | **Action set `v4`** for training: `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure` (+ their release buttons), 29 in all | Press-type duties need `pressure`; the "AI plays the ball" shortcut needs `builtin_ai`; `full` has useless extras |
+| 2026-11-23 | **Our keeper saves by himself** (`keeper_auto_save` engine switch), not by handing him to the game's AI | A controlled keeper can't save at all otherwise (0/20 vs 20/20 conceded); the network keeps positioning |
+| 2026-11-23 | **Magnet off** (`use_magnet: false`) for our players | The magnet overrides where the network sends a player; duties need exact movement |
+| 2026-11-23 | **No retune of the game's AI** | Re-measured: 2.00 goals/match on our physics vs 2.19 original (within noise); only shots are fewer (5.4 vs 9.8) |
 
 Also: substitutions in this project mean **swapping player archetypes** (manager v3), and **set-piece routines** are planned (manager v3).
 
@@ -243,12 +247,14 @@ These are bugs or traps we hit; the training code must handle them (also in `doc
 
 1. **Possession blinks.** Between a dribbler's touches the game says *nobody* has the ball. Without a short memory (keep the last owner for up to 1 s of loose ball), every duty that follows the ball switches off and on several times a second.
 2. **Kicks have a wind-up** of about 8 frames. Handing a player to the game's AI (`builtin_ai`) during that time resets his controls and the kick silently never happens. Keep the player under our control until the ball has left his foot.
-3. **Action set.** The frozen `v3` action set has no pressure, team pressure or keeper rush, but our defensive action head needs them. Train on the full set or extend `v3`.
+3. **Action set (settled 2026-11-23).** The frozen `v3` set has no pressure, team pressure, keeper rush or builtin_ai. We train on **`v4`** (`v3` plus those four and three release buttons). `sticky_actions` has 13 entries with `v4`.
 4. **The other team's controls are mirrored.** For the right-hand team, "right" means forward. Matters for scripted opponents and self-play.
 5. **Rendering changes the game.** A run with video and a run without, from the same seed, play out differently. Never compare one with the other.
 6. **Velocities (settled 2026-11-23).** `*_direction` is the movement over 1/ticks seconds, so **speed per second = direction × ticks per step**. At the default 10 ticks that is exactly one step (0.1 s), as `docs/observation_spec.md` assumes. The lab ran at 4 ticks (0.04 s steps), where direction covers 0.25 s. Measured: fastest player 0.80 m per step at 10 ticks, 0.32 m at 4 ticks (both 8 m/s). Lab figures quoted in steps are 0.04 s steps: the kick wind-up of ~8 lab steps is ~3 steps at 0.1 s.
-8. **One engine per Python process.** Creating a second environment in the same process with a different `physics_steps_per_frame` silently keeps the first setting. Run each setting in its own process.
-9. **Video needs the screen awake.** On a Mac, rendering stalls when the display sleeps; use `--no-video` for overnight runs.
+7. **One engine per Python process.** Creating a second environment in the same process with a different `physics_steps_per_frame` silently keeps the first setting. Run each setting in its own process.
+8. **Video needs the screen awake.** On a Mac, rendering stalls when the display sleeps; use `--no-video` for overnight runs.
+9. **A keeper we control can't save** unless `keeper_auto_save` is on: the game's dive/catch logic only runs for its own AI keeper (Bernard's shot test, 2026-11-23).
+10. **`keeper_rush` is an outfield button.** It tells the game's AI keeper to come out; pressed by our own keeper it does nothing. Mask it off for our keeper. (The lab's scripted sweep pressed it too; its result came from movement alone.)
 
 ---
 
@@ -332,10 +338,8 @@ Even if everything works:
 
 ## 13. Open items
 
-- **Commit and push** this week's work (duty lab, training-plan updates, this file); the repo doesn't have it yet.
 - Decide the PPO framework (PyTorch?) and add it to the report.
 - Confirm the cloud platform and its session limits; measure steps per second.
-- Fix the action set (§7.3) and check the velocity units (§7.6) before freezing the observation.
 - Build the rule-based team from the lab scripts + AI on the ball (P5).
 - Duty lab, still to do: transition duties (counter-press, recover, break), set pieces, and optionally box arrival with varied crosses.
 - Randomise archetype line-ups per match in training.

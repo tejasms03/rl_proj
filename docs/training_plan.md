@@ -114,7 +114,7 @@ Sent to the env as the existing tuple `(action, power, dx, dy)`; no engine chang
 | D. Defensive action | categorical (5) | none, pressure, team pressure, sliding, keeper rush | button action |
 | E. Kick power | Beta on [0, 1] | continuous | `power` |
 
-One button per step: C wins if not "none" and the player can kick, otherwise D. Masks: C only with the ball near (≤ 2 m) or coming to me; D only when the opponent has the ball; keeper rush GK only; E counted only when C is a kick.
+One button per step: C wins if not "none" and the player can kick, otherwise D. Masks: C only with the ball near (≤ 2 m) or coming to me; D only when the opponent has the ball; keeper rush outfield only (it tells the game's AI keeper to come out; our own keeper saves through `keeper_auto_save`); E counted only when C is a kick.
 
 ### 2.3 Player reward
 
@@ -212,7 +212,8 @@ Ideas ranked by time saved for the effort:
 
 **Lab findings that apply to training:**
 - **Possession memory.** The engine reports nobody on the ball between a dribbler's touches. Duty checks, duty rewards and "who has it" inputs need the lab's memory (a loose ball stays the last owner's for up to 1 s), or they flicker several times a second.
-- **Action set.** The frozen `v3` set has no pressure, team pressure or keeper rush, but the defensive head (§2.2) needs them: train on the full set, or extend `v3`.
+- **Action set (settled 2026-11-23).** Train on `v4`: `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure` and their releases (29 actions).
+- **Keeper saves.** A keeper we control only saves with the `keeper_auto_save` engine switch on; `keeper_rush` belongs to the outfield players.
 - **Opponent controls are mirrored.** For the right team, "right" is forward. This matters for scripted opponents and self-play code.
 - **Rendering changes the game.** A rendered and an unrendered run from the same seed differ. Never compare one with the other.
 - **Ball-winning duties are scored on outcome** (balls won, time to win), not time in position: their success ends the duty.

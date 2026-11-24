@@ -26,7 +26,7 @@ One observation per controlled player, built from GRF's `raw` observation each s
 | role | 10 | `left_team_roles[i]` | one-hot |
 | attributes: 22 stats, height, foot | 26 | `left_team_attributes[i]` | see conventions |
 | has the ball | 1 | `ball_owned_team == 0 and ball_owned_player == i` | 0/1 |
-| held inputs (8 directions, sprint, dribble) | 10 | `sticky_actions` | 0/1 |
+| held inputs (8 directions, sprint, dribble, keeper rush, pressure, team pressure) | 13 | `sticky_actions` (action set `v4`) | 0/1 |
 
 ### Ball — 13
 

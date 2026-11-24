@@ -165,6 +165,12 @@ Whole matches (24 AI-vs-AI each, realistic ball): P4 on 1.33 goals / 4.5 shots /
 - `keep_match_length` (bool): scale `game_duration` so a match lasts the same game time at any `physics_steps_per_frame`.
 - Gamepad play only (not the env): CONTESTED controller state, goal and instant (SHARE) replays from 1 s state snapshots plus logged inputs (exact: restore + replay matches live play).
 
+### v1.2 additions (2026-11-23, decided for training; switches default off; v1.0 equivalence still passes)
+- **Action set `v4`** (29 actions): `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure`, `release_keeper_rush`, `release_pressure`, `release_team_pressure`. The three new buttons are sticky, so their releases are needed. The first 22 indices are `v3`'s; `sticky_actions` grows from 10 to 13 entries (v3's 10 first, then keeper_rush, pressure, team_pressure). Tests: `tests/test_action_set_v4.py`.
+- **`keeper_auto_save`** (bool): an agent-controlled keeper dives and saves using the built-in keeper's save logic (`PlayerController::_KeeperDeflectCommand`, upstream only called by `ElizaController`). While a shot is bound for goal (GoalieDefaultStrategy's 2D test, on the true ball prediction) the keeper also gets the magnet, even with `use_magnet` off: dives only start from that movement. Otherwise movement stays with the agent. Measured (launched shots from 20 m, magnet off): 20/20 conceded without the switch, 0/20 with it, for both a still keeper and one tracking the ball; with no shot coming, movement is unchanged (8.4 vs 8.8 m in 2 s). Tests: `tests/test_keeper_auto_save.py`, plus a determinism config.
+- **Training settings** (decided 2026-11-23): `v4`, `keeper_auto_save` on, `use_magnet` off, step length = default 10 ticks (0.1 s).
+- **Engine facts found:** an agent-controlled keeper cannot save without `keeper_auto_save` (the save logic is AI-only); `keeper_rush` only tells the *AI* keeper to come out (`goalie_default.cpp`), so it belongs on the outfield buttons, not the keeper's.
+
 ## 2. Testing
 
 | ID | Test | What it shows | When |
@@ -215,6 +221,7 @@ Decided with the user: the game should feel like modern FIFA / EA FC, the agents
 **Acceptance:** T1 still exact with every switch off; passes land within ±10% of the intended distance at each power; the user signs off on re-recorded clips.
 
 **Known limitation (accepted 2026-10-09):** the built-in AI is hand-written rules tuned for upstream physics, so it creates fewer chances on the new physics: 24 AI-vs-AI matches at `game` pace give 1.5 goals / 4.9 shots per match vs 2.6 / 10.3 upstream (upstream grass inside realistic mode: 1.2 / 7.0, so grass is not the single cause). RL agents train on the new physics and are unaffected; the built-in AI is just a softer early benchmark. Optional backlog: retune its pass-risk timing and close control for the new physics.
+**Re-measured 2026-11-23** on the current engine (96 AI-vs-AI matches each, `grf_tools.matchstats`, physics + ball + situational accuracy on): 2.00 ± 0.14 goals and 5.42 shots per match, vs 2.19 ± 0.12 and 9.82 upstream; conversion 37% vs 22%. The goal gap is now within noise; the AI shoots about half as often but scores more of its shots. **Decided: no AI retune.**
 
 **Cut first if late:** P3 extra kicks (curl, through ball, chip), P4 situational accuracy.
 
