@@ -145,6 +145,15 @@ action_set_v2 = action_set_v1 + [action_builtin_ai]
 # kick_power_control and realistic_ball_physics.
 action_set_v3 = action_set_v1 + [action_curl_shot, action_chip, action_through_ball]
 
+# rl_project v4 (2026-11-23): v3 plus what our duties and shortcuts need
+# (29 actions). pressure / team_pressure / keeper_rush are sticky, so their
+# release actions come too; builtin_ai hands a player to the game's AI. The
+# first 22 indices are v3's, and the sticky_actions observation keeps v3's
+# 10 entries first, then keeper_rush, pressure, team_pressure (13).
+action_set_v4 = action_set_v3 + [
+    action_builtin_ai, action_keeper_rush, action_pressure, action_team_pressure,
+    action_release_keeper_rush, action_release_pressure, action_release_team_pressure]
+
 # Special action set that includes all the core actions in the same order.
 full_action_set = action_set_v2 + [
     action_keeper_rush, action_pressure,
@@ -162,6 +171,7 @@ action_set_dict = {
     "default": action_set_v1,
     "v2": action_set_v2,
     "v3": action_set_v3,
+    "v4": action_set_v4,
     # "full" action set is needed by the play_game script.
     # Don't use it for training models.
     "full": full_action_set,
