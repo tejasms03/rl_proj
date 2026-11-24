@@ -89,7 +89,7 @@ At a restart each player gets a **set-play duty**: deliver (taker, to a zone), a
 
 ### 2.1 Player state (observation)
 
-`docs/observation_spec.md` base (866) **plus** the instruction block:
+`docs/observation_spec.md` base (869) **plus** the instruction block:
 
 | Block | Size | Contents |
 |---|---|---|
@@ -100,7 +100,7 @@ At a restart each player gets a **set-play duty**: deliver (taker, to a zone), a
 | I5 Set play | 15 | restart type one-hot (kickoff, goal kick, free kick attack, free kick defend, corner attack, corner defend: 6), set-play duty one-hot (deliver, attack zone, rest defence, mark, hold zone: 5), zone (x, y) (2), arrival time (1), time since restart (1) |
 | M Memory | 6 | last 3 button-action classes (none/pass/shot/defend), steps since my last touch, steps since possession changed, instruction changed in the last 5 s |
 
-**Total: 866 + 91 = 957.** Duties not yet enabled stay zero. Critic extras as in `observation_spec.md`, plus every player's instruction block.
+**Total: 869 + 91 = 960.** Duties not yet enabled stay zero. Critic extras as in `observation_spec.md`, plus every player's instruction block.
 
 ### 2.2 Player actions (factorised heads)
 

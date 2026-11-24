@@ -53,7 +53,7 @@ Manager AI  ──instruction block──►  YOU: Outfield network (10 players)
 
 ### A. Env wrapper (week 1: everyone waits on this)
 
-1. **Observation encoder:** 957 numbers per player (866 base from `docs/observation_spec.md` + 91 instruction block), normalised to roughly −1…1, metres first.
+1. **Observation encoder:** 960 numbers per player (869 base from `docs/observation_spec.md` + 91 instruction block), normalised to roughly −1…1, metres first.
 2. **Padding:** scenes with fewer than 11 players per side (academy drills) fill empty slots with zeros + an "absent" flag; the critic must cope too.
 3. **Mirroring:** our network on either side sees "we attack to the right", and its actions are mirrored back.
 4. **Possession memory** (1 s) in everything that asks "who has the ball".

@@ -13,7 +13,7 @@ One observation per controlled player, built from GRF's `raw` observation each s
 
 ## Actor observation
 
-### Self — 55
+### Self — 58
 
 | Feature | Size | Source | Normalization |
 |---|---|---|---|
@@ -83,7 +83,7 @@ Same idea as teammates, with **key attributes only** (what you'd read off a play
 | game mode | 7 | one-hot |
 | pitch condition (normal, dry, wet, long grass) | 4 | one-hot (from the env config) |
 
-**Actor total: 55 + 13 + 470 + 308 + 20 = 866 numbers per player.**
+**Actor total: 58 + 13 + 470 + 308 + 20 = 869 numbers per player** (58 since action set `v4`: 13 held buttons instead of 10).
 
 ## Critic extras (training only)
 

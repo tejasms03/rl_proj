@@ -51,7 +51,7 @@
 | `tests/` | Automated tests (physics, determinism, controls, kicks, archetypes) |
 | `PLAN.md` | The engine patch plan (frozen as `v1.0`) |
 | `docs/training_plan.md` | **The RL plan**: duties, observation, actions, rewards, manager, stages, shortcuts (§4.1) |
-| `docs/observation_spec.md` | What each player sees (866 numbers + 91 for instructions = 957) |
+| `docs/observation_spec.md` | What each player sees (869 numbers + 91 for instructions = 960) |
 | `docs/manager_reward_shaping_plan.md` | Manager reward notes |
 | `docs/project_scope.pdf` | 5-page scope briefing for the team (assumes no football/RL background) |
 | `grf_tools/` | Our tools: play with a gamepad, watch matches, record clips, measure physics |
