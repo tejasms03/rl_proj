@@ -1,19 +1,19 @@
-"""Does the keeper dive? Same shots, keeper controlled four ways.
+"""Does keeper positioning still matter with keeper_auto_save on?
 
-Shots are launched straight at the goal (launch_ball), so there is no 1v1
-run-in for the keeper to rush out at: it has to stand and save.
+Shots are launched straight at the goal (launch_ball) at step 30, so the
+keeper has 3 s to get into position first.
 
-    python -m grf_tools.keeper_shot_test                    # 20 shots per mode
-    python -m grf_tools.keeper_shot_test --episodes 5 --watch
-    python -m grf_tools.keeper_shot_test --modes ai_keeper handoff --watch --pause
+    python -m grf_tools.keeper_position_test                # 20 shots per mode
+    python -m grf_tools.keeper_position_test --episodes 5 --watch --pause
 
 Modes:
-    ai_keeper    no agent on the keeper at all: the normal built-in keeper
-                 (like ./watch.sh)
-    handoff      an agent controls the keeper but sends builtin_ai every step
-    agent_idle   an agent controls the keeper and sends no input
-    agent_track  an agent controls the keeper and slides along the line to
-                 stay level with the ball (no dive command)
+    positioned   slides along the line to stay level with the ball
+                 (stays in the middle for these shots)
+    off_post     walks to one post and stops just inside it
+                 (release_direction, since move buttons are sticky)
+
+Result (20 shots, auto-save on): positioned 0/20, off_post 1/20 conceded.
+Standing outside the post (old -0.04 threshold, overshot) conceded 6/20.
 
 Each mode runs in its own process (the engine allows one game per process).
 """
