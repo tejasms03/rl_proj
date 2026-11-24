@@ -67,6 +67,9 @@ class HumanController : public PlayerController {
   protected:
 
     void _GetHidInput(Vector3 &rawInputDirection, float &rawInputVelocityFloat);
+    // rl_project keeper_auto_save: GoalieDefaultStrategy's 2D "is the ball
+    // bound for our goal" test, on the true ball prediction.
+    bool _KeeperBallBoundForGoal();
 
     AIControlledKeyboard *hid;
 

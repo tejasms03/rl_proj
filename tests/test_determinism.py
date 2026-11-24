@@ -17,6 +17,7 @@ CONFIGS = {
     },
     "p1b_physics": {"realistic_player_physics": True},
     "p2_ball": {"realistic_ball_physics": True, "pitch_condition": "wet"},
+    "keeper_auto_save": {"keeper_auto_save": True, "use_magnet": False},
 }
 
 

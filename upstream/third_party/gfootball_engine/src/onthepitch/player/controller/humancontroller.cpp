@@ -322,6 +322,12 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
   inputDirection = steadyDirection;
   //SetBlueDebugPilon(player->GetPosition() + inputDirection * (inputVelocityFloat * 0.5f + 0.6f));
 
+  // rl_project keeper_auto_save: is a shot on its way into our goal?
+  const bool keeperAutoSave = GetScenarioConfig().keeper_auto_save &&
+                              CastPlayer()->GetFormationEntry().role == e_PlayerRole_GK &&
+                              match->IsInPlay() && !match->IsInSetPiece();
+  const bool keeperShotIncoming = keeperAutoSave && _KeeperBallBoundForGoal();
+
   if (match->IsInPlay() && !match->IsInSetPiece()) {
     DO_VALIDATION;
 
@@ -348,6 +354,14 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
       dot = dot * 0.8f + 0.2f;
       dot *= 0.9f; // else, <=walk-anims may never work (backheels and such)
       inputVelocityFloat = CastPlayer()->GetFloatVelocity() * dot;
+    }
+
+    // rl_project keeper_auto_save: the built-in keeper's dive/catch, queued
+    // first so it wins over ball control and movement (as in ElizaController).
+    if (keeperAutoSave && (!hasUniquePossession || possessionAmount < 3.4f)) {
+      DO_VALIDATION;
+      bool onlyPickupAnims = !keeperShotIncoming && possessionAmount > 1.3f;
+      _KeeperDeflectCommand(commandQueue, onlyPickupAnims);
     }
 
     // ball control?
@@ -384,6 +398,10 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
     forceMagnet = true;
     extraHaste = true;
   }
+  // keeper_auto_save: while a shot is bound for goal the keeper steps into
+  // it as the built-in keeper does (the magnet), even with use_magnet off;
+  // dives only start from that movement.
+  if (keeperShotIncoming) forceMagnet = true;
   _MovementCommand(commandQueue, forceMagnet, extraHaste);
 
   if (commandQueue.size() > 0) {
@@ -391,7 +409,7 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
     PlayerCommand &command = commandQueue.at(commandQueue.size() - 1);
     assert(command.desiredFunctionType == e_FunctionType_Movement); // make sure this is the movement command (is probably guaranteed, check out _MovementCommand)
 
-    if (!match->GetUseMagnet()) {
+    if (!match->GetUseMagnet() && !keeperShotIncoming) {
       DO_VALIDATION;
       // no magnet
       command.desiredDirection = inputDirection;
@@ -416,6 +434,23 @@ void HumanController::RequestCommand(PlayerCommandQueue &commandQueue) {
 
   // reload original input
   inputDirection = inputDirectionSaveNonsteady;
+}
+
+bool HumanController::_KeeperBallBoundForGoal() {
+  DO_VALIDATION;
+  const int side = team->GetDynamicSide();
+  const float panic = 1.02f + (1.0f - (CastPlayer()->GetStat(mental_defensivepositioning) * 0.6f +
+                                       CastPlayer()->GetStat(mental_vision) * 0.4f)) * 0.5f;
+  Ball *ball = match->GetBall();
+  if (ball->Predict(4000).coords[0] * side <= pitchHalfW) return false;
+  if ((CastPlayer()->GetPosition() - ball->Predict(250)).GetLength() >= 32.0f) return false;
+  const Vector3 p0 = ball->Predict(0).Get2D();
+  const Vector3 p1 = ball->Predict(800).Get2D();
+  const float dx = p1.coords[0] - p0.coords[0];
+  if (fabs(dx) < 0.0001f) return false;
+  const float t = (pitchHalfW * side - p0.coords[0]) / dx;
+  const float y = p0.coords[1] + t * (p1.coords[1] - p0.coords[1]);
+  return fabs(y) <= 3.7f * panic;
 }
 
 void HumanController::Process() {
