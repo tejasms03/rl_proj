@@ -78,7 +78,10 @@ actions = {"move": int[11], "speed": int[11], "ball": int[11], "defend": int[11]
 - **Masks** (pass them to your policy's softmax; a masked choice is sent as 0):
   - Kicks are allowed only with the ball within 2 m and below 2.5 m, or with a loose ball whose path comes that close within 1.5 s.
   - Defensive actions are allowed only while they have the ball (possession memory).
-  - Keeper rush is never allowed for slot 0. It tells the *AI* keeper to come out, so it is an outfield button. Team pressure is also never allowed for slot 0.
+  - **The keeper (slot 0) has a smaller set** (agreed with G, 2026-11-24). He walks or sprints, distributes with short, high or long passes, and saves through `keeper_auto_save`:
+    - speed: no close control (2)
+    - ball: no shot, curl shot, chip or through ball (4–7)
+    - defend: none at all, so no pressure (1), team pressure (2), sliding (3) or keeper rush (4). Keeper rush tells the *AI* keeper to come out, so it is an outfield button.
   - Absent slots, and slot 0 with `keeper="builtin"`, allow only choice 0.
 
 **`info["overridden"]: bool[11]`** is True when your choice for that player did not reach the game. **Leave those steps out of the policy loss.** It happens when:
@@ -106,14 +109,14 @@ The sections and sizes come from `docs/training_plan.md` §2.1. **The order insi
 - With `instructions=None`, the built-in sampler supplies them. It is on by default, `sampler=None` turns it off, and it is seeded by the env's seed.
 
 **What the sampler draws.** It re-draws the whole team every 30–60 s of game time:
-- **Random draws use v1 duties only.** Defending is D1, D2, D4, D5 or D7. Attacking is A1–A4. Transition is T0 or T2. The keeper gets D0/D8 and A0/A1.
+- **Random draws use v1 duties only.** Defending is D1, D2, D4, D5 or D7. Attacking is A1–A4. Transition is T0 or T2. The keeper gets D0 or D8 (with a line height), and A0, A1 (a spot near our goal) or A2 (available for a back pass).
 - **Targets match the duty.** Mark gets an opponent (nearer ones are likelier). Cover gets a teammate. Hold zone and hold shape get an anchor near the player's kick-off spot.
 - **20% of draws are presets:** high press, low block, possession, counter, wing play or false nine, built from v1 duties. Where a preset needs a duty that isn't in v1, the player gets the closest v1 duty (false nine: support instead of drop to receive).
 
 **Open items for M1 and G:**
 1. **Combination grammar.** Which duties may go together isn't written down anywhere. Until it is, draws are independent per player.
 2. **A3 width has no "side" field in I3.** Proposal: the anchor's y gives the side (±30 m).
-3. **Keeper duties.** D8 is the only keeper duty in the list. `goalkeeper.md` also mentions "hold position" and set-piece positions.
+3. ~~Keeper duties.~~ **Settled with G (2026-11-24):** defending D0 none, D8 sweep; attacking A0 none, A1 hold shape (a spot near our goal), A2 support (available for a back pass). Short vs long distribution stays learned through the risk and tempo dials; it is not a duty. Set-piece positions come with I5 later.
 4. **The memory block.** "Last 3 actions" is squeezed into 3 numbers (class ÷ 3) so the block stays at 6, as §2.1 says.
 
 ## 6. Episodes, rewards, info

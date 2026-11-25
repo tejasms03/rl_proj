@@ -23,6 +23,8 @@ Rules from the duty lab (docs/CONTEXT.md §7):
 - AI plays the ball (`ai_on_ball`): our player on the ball, not winding up a
   kick, is handed to the game's AI (held buttons released first, one per step).
 - Keeper rush tells the game's *AI* keeper to come out: outfield players only.
+- The keeper (slot 0) may only walk or sprint, pass (short, high, long), and
+  choose no defensive action: see `masks`.
 
 `overridden[i]` is True on every step where the policy's choice for player
 i was not what reached the engine (keeper left to the AI, AI on the ball,
@@ -111,8 +113,15 @@ def masks(raw, possession_team: int, present: np.ndarray, keeper_agent: bool) ->
         m["defend"][rows, 2] = True                       # team pressure
         m["defend"][rows, 3] = True                       # sliding
         m["defend"][rows, 4] = True                       # keeper rush (outfield only, below)
-    m["defend"][0, 2] = False                             # keeper: no team pressure
-    m["defend"][0, 4] = False                             # keeper: rush is for the AI keeper only
+    # The keeper (slot 0) has a smaller set (agreed with G, 2026-11-24): he
+    # walks or sprints, distributes with passes, and saves through
+    # keeper_auto_save, not with tackles.
+    m["speed"][0, 2] = False                              # no close control
+    m["ball"][0, 4:8] = False                             # no shot, curl shot, chip, through ball
+    m["defend"][0, 1] = False                             # no pressure
+    m["defend"][0, 2] = False                             # no team pressure
+    m["defend"][0, 3] = False                             # no sliding
+    m["defend"][0, 4] = False                             # no keeper rush: it calls the *AI* keeper out
     if not keeper_agent:                                  # slot 0 is the game's AI: nothing to choose
         for name in m:
             m[name][0, 1:] = False

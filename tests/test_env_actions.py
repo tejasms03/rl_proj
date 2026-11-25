@@ -77,9 +77,19 @@ def test_masks():
     k = OutfieldEnv("outfield_3v3", seed=2, keeper="agent")
     try:
         obs = k.reset()
-        assert obs["masks"]["move"][0].all()
-        assert not obs["masks"]["defend"][0, 4], "keeper rush is never the keeper's"
-        assert not obs["masks"]["defend"][0, 2]
+        m = obs["masks"]
+        assert m["move"][0].all()
+        # The keeper's set (agreed with G): walk / sprint, passes only, no defensive actions.
+        assert m["speed"][0].tolist() == [True, True, False]
+        assert not m["ball"][0, 4:].any(), "no shot, curl shot, chip or through ball"
+        assert m["defend"][0].tolist() == [True, False, False, False, False]
+        # Even while they have the ball and it is at his feet.
+        raw =dict(k.raw_list[0], ball=np.asarray(k.raw_list[0]["left_team"][0]).tolist() + [0.1],
+                   ball_owned_team=1, ball_owned_player=1)
+        m2 = act.masks(raw, 1, k.present, keeper_agent=True)
+        assert m2["ball"][0, 1:4].all() and not m2["ball"][0, 4:].any()
+        assert m2["defend"][0].tolist() == [True, False, False, False, False]
+        assert m2["defend"][1].all(), "outfield players keep every defensive action"
     finally:
         k.close()
 

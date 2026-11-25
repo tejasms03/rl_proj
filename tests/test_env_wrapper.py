@@ -75,7 +75,13 @@ def test_sampler_draws_v1_duties_and_presets():
             names.add(plan.name)
             for i, p in enumerate(plan.players):
                 if i == 0:
-                    assert p.defending in ins.KEEPER_DEFENDING
+                    if plan.name == "random":
+                        assert p.defending in ins.KEEPER_DEFENDING
+                        assert p.attacking in ins.KEEPER_ATTACKING
+                        if p.defending == 8:
+                            assert p.line_height > 0, "sweep needs a line height"
+                        if p.attacking == 1:
+                            assert p.anchor[0] >= -52.0, "his spot is in front of the goal line"
                     continue
                 assert p.defending in ins.V1_DEFENDING + (0,)
                 assert p.attacking in ins.V1_ATTACKING + (0,)
