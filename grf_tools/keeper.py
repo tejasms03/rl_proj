@@ -36,17 +36,62 @@ def shot_incoming(obs):
 
         return all(shot_conditions)
 
+#keeper reward function
+def keeper_reward(prev_obs, obs, duty_ok, memory):
+     reward = 0
+
+     keeper_x = obs["left_team"][0][0] #goal line x = -1
+     keeper_y = obs["left_team"][0][1] #between goal post
+     score_now = obs["score"][1] #opponent's score current
+     prev_score = prev_obs["score"][1] #opponent's score one step before
+     prev_ball_owner = prev_obs["ball_owned_team"] #0 = us, 1 = them, -1 = nobody
+     ball_owner_now = obs["ball_owned_team"] #0 = us, 1 = them, -1 = nobody
+     who_owned = prev_obs["ball_owned_player"] #0 = the keeper
+     who_owns = obs["ball_owned_player"] #0 = the keeper, -1 = nobody
+     
+     #inside the posts
+     if keeper_x < -0.95 and abs(keeper_y) < 0.044:
+          reward += 0.001
+
+     #opponents score
+     if score_now > prev_score:
+          reward -= 1
+
+     #following duty from manager
+     if duty_ok == True:
+          reward += 0.005
+
+     #in position when shot comes
+     if shot_incoming(obs) and not shot_incoming(prev_obs) and keeper_x < -0.95 and abs(keeper_y) < 0.044:
+          reward += 0.8
+
+     #does keeper pass? 
+     if ball_owner_now == -1 and who_owned == 0 and prev_ball_owner == 0:
+          memory["pass_in_air"] = True
+
+     #keeper passed started and it landed
+     if memory["pass_in_air"] and ball_owner_now != -1:
+          if ball_owner_now == 1: #if it goes to opposing team
+               reward -= 0.8
+
+          elif ball_owner_now == 0 and who_owns != 0: #if it goes to our team and not to keeper
+               reward += 0.6
+
+          memory["pass_in_air"] = False
+
+     return reward
+
 class KeeperNet(nn.Module):
      def __init__ (self):
           super().__init__()
-          self.layer1 = nn.Linear(15,64)
-          self.layer2 = nn.Linear(64,64)
-          self.move_dir = nn.Linear(64, 17) # A: idle + 16 directions
-          self.speed = nn.Linear(64, 3) # B: walk, sprint, close control
-          self.ball_action = nn.Linear(64, 8) # C: none, short, high, long, shot, curl, chip, through ball
-          self.defense = nn.Linear(64, 5) # D: none, pressure, team pressure, sliding, keeper rush
-          self.kick_power = nn.Linear(64, 2) # E: two numbers that shape a range of powers (explained in step 2)
-          self.critic = nn.Linear(64,1)
+          self.layer1 = nn.Linear(960,256)
+          self.layer2 = nn.Linear(256,256)
+          self.move_dir = nn.Linear(256, 17) # A: idle + 16 directions
+          self.speed = nn.Linear(256, 3) # B: walk, sprint, close control
+          self.ball_action = nn.Linear(256, 8) # C: none, short, high, long, shot, curl, chip, through ball
+          self.defense = nn.Linear(256, 5) # D: none, pressure, team pressure, sliding, keeper rush
+          self.kick_power = nn.Linear(256, 2) # E: two numbers that shape a range of powers (explained in step 2)
+          self.critic = nn.Linear(256,1)
           self.bend = nn.ReLU()
      
      def forward(self, x):
@@ -72,7 +117,7 @@ if __name__ == "__main__":
     #network test
     net = KeeperNet()
 
-    situation = torch.rand(15) #create random situation 
+    situation = torch.rand(960) #create random situation 
     heads, value = net(situation) #from the situation get the scores and value from the actor and critic
 
     for head in heads:
