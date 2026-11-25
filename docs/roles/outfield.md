@@ -44,7 +44,7 @@ Manager AI  ──instruction block──►  YOU: Outfield network (10 players)
 - **Action set `v4`** (decided 2026-11-23): `v3` + `builtin_ai`, `keeper_rush`, `pressure`, `team_pressure` and their release buttons (29). `sticky_actions` has 13 entries.
 - **Magnet off** (`use_magnet: false`): players go exactly where the network sends them.
 - **Mirrored side:** for the right-hand team, "right" is forward; one wrapper makes both sides look like "we attack to the right".
-- **Velocity units:** the lab measured `*_direction` ≈ movement over 0.25 s at 4 ticks per step; `docs/observation_spec.md` assumes per step at 10 ticks. Check before freezing the observation.
+- **Velocity units (settled 2026-11-23):** `*_direction` is the movement over one step, so at 10 ticks (0.1 s) speed in m/s = movement in m × 10. The lab ran at 4 ticks, and `velocity()` in `grf_tools/duty_lab/duties.py` still multiplies by 4: use ×10 when porting the duty checks.
 - **Rendering changes the game:** compare rendered runs only with rendered runs.
 
 ---
