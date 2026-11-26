@@ -17,7 +17,7 @@ This document specifies interfaces, rewards, experiments, and implementation ord
 
 Start with one shared policy conditioned on player identity/role, physical attributes, and manager instructions. Use separate categorical action and kick-power outputs, respecting the existing v3 actions and KickPowerWrapper interface. Define the power distribution and likelihood explicitly when implementing PPO; evaluate power likelihood only under the chosen action convention and keep that convention consistent in storage and optimization.
 
-Use the existing actor observation design in docs/observation_spec.md as the base: 866 features per player before manager inputs. Add the assigned tactical role, team playstyle, formation slot/anchor, pressing duty, and active set-play assignment/phase. Include recent observable context through a short history or recurrent state when needed. Mask inactive players and invalid actions.
+Use the existing actor observation design in docs/observation_spec.md as the base: 869 features per player before manager inputs (960 with the 91-number instruction block). Add the assigned tactical role, team playstyle, formation slot/anchor, pressing duty, and active set-play assignment/phase. Include recent observable context through a short history or recurrent state when needed. Mask inactive players and invalid actions.
 
 A centralized critic may use joint team state and the existing training-only extras. Actor observations during training must match deployment availability. Opponent intent, future actions, and hidden controller inputs cannot enter the deployed manager or player policy.
 

@@ -51,7 +51,7 @@
 | `tests/` | Automated tests (physics, determinism, controls, kicks, archetypes) |
 | `PLAN.md` | The engine patch plan (frozen as `v1.0`) |
 | `docs/training_plan.md` | **The RL plan**: duties, observation, actions, rewards, manager, stages, shortcuts (§4.1) |
-| `docs/observation_spec.md` | What each player sees (866 numbers + 91 for instructions = 957) |
+| `docs/observation_spec.md` | What each player sees (869 numbers + 91 for instructions = 960) |
 | `docs/manager_reward_shaping_plan.md` | Manager reward notes |
 | `docs/project_scope.pdf` | 5-page scope briefing for the team (assumes no football/RL background) |
 | `grf_tools/` | Our tools: play with a gamepad, watch matches, record clips, measure physics |
@@ -124,6 +124,7 @@ Claude (AI assistant) built the engine patches and the duty lab, and reviews; th
 | 2026-11-23 | **Our keeper saves by himself** (`keeper_auto_save` engine switch), not by handing him to the game's AI | A controlled keeper can't save at all otherwise (0/20 vs 20/20 conceded); the network keeps positioning |
 | 2026-11-23 | **Magnet off** (`use_magnet: false`) for our players | The magnet overrides where the network sends a player; duties need exact movement |
 | 2026-11-23 | **No retune of the game's AI** | Re-measured: 2.00 goals/match on our physics vs 2.19 original (within noise); only shots are fewer (5.4 vs 9.8) |
+| 2026-11-24 | **Skill stats matter** (`skill_stats` engine switch, on for training) | Measured: only pace, acceleration, strength, dribbling and shot power changed anything; passers, finishers, headers and tacklers would all have played the same. Now a 0.3 passer reaches a 40 m teammate 50% of the time vs 100% for a 1.0 passer (`PLAN.md` v1.2) |
 
 Also: substitutions in this project mean **swapping player archetypes** (manager v3), and **set-piece routines** are planned (manager v3).
 
@@ -138,6 +139,8 @@ Google Research Football (GRF) is an open-source 3D football game for AI researc
 - **Kicks:** agent-controlled kick power with an assist level; extra kick types (curl shot, chip, through ball).
 - **Player archetypes:** 19 profiles (target man, false nine, ball-winning midfielder, sweeper keeper, ...) with equal stat budgets, swappable mid-match.
 - **Situational accuracy:** shooting under pressure is harder.
+- **Skill stats:** passing, finishing, heading and tackling stats change outcomes (the original game mostly ignored them), so archetypes play differently.
+- **Keeper saves:** a keeper our AI controls dives and saves by himself (the original only lets its own AI keeper do that).
 - **Human play (demo only, off for training):** PlayStation controller, defending mode, selection/landing rings, custom kits, player looks (skin, hair), `--watch` spectator mode.
 - **Offside:** checked and correct (same rate as original GRF); a diagnostic log is off by default.
 

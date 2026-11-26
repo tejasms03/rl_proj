@@ -47,7 +47,7 @@ PATCH_SWITCHES = ('realistic_player_physics', 'realistic_ball_physics',
                   'injury_time', 'pass_reach_assist', 'shot_power_floor',
                   'defend_auto_switch', 'switch_to_ball', 'jockey', 'auto_receive',
                   'air_ball_switch', 'landing_marker', 'selection_ring',
-                  'keeper_auto_save')
+                  'keeper_auto_save', 'skill_stats')
 PITCH_CONDITIONS = {'normal': 0, 'dry': 1, 'wet': 2, 'long_grass': 3}
 BALL_PACES = {'game': 0, 'realistic': 1}
 # Switches set by name; the engine stores their index.

@@ -39,6 +39,16 @@ float SituationalKickDifficulty(Player *player, const std::string &bodypart);
 // rl_project P4: heavy first touch: mixes part of the incoming ball movement
 // into a receiving touch for fast balls and poor ball control.
 Vector3 ApplyHeavyTouch(Ball *ball, Player *player, const Vector3 &touch);
+// rl_project skill_stats: aim and power error for a pass, shot or header,
+// shrinking with the matching stat (header when the ball is above head-ish
+// height). Returns `touch` unchanged when the switch is off.
+Vector3 ApplySkillStatError(Ball *ball, Player *player, e_FunctionType functionType,
+                            const Vector3 &touch);
+// rl_project skill_stats: does this tackle (Interfere) or slide win the ball
+// cleanly? Always true when the switch is off.
+bool SkillStatCleanTackle(Player *player, e_FunctionType functionType);
+// rl_project skill_stats: heading reach multiplier for high touch points.
+float SkillStatHeadingReach(Player *player, float animBallHeight);
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow = 1.0f, float bias = 1.0f);
