@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn 
-
+import math
 
 #list of actions
 KEEPER_ACTIONS = [
@@ -35,6 +35,36 @@ def shot_incoming(obs):
         ]
 
         return all(shot_conditions)
+
+#"when they shoot, the keeper is within 1 m of the line from the ball to the centre of our goal."
+def check_shot_position(raw_obs, slot, instruction):
+
+     if shot_incoming(raw_obs) == True:
+
+          #where the keeper is in game units
+          keeper_x = raw_obs["left_team"][0][0] 
+          keeper_y = raw_obs["left_team"][0][1]
+          #where the ball is in game units
+          ball_x = raw_obs["ball"][0]
+          ball_y = raw_obs["ball"][1]
+
+          #ball location conversions
+          a_x = (ball_x + 1) * 54.4 
+          a_y = ball_y * 83.6
+          #length of ball
+          a = math.hypot(a_x, a_y)
+     
+          #keeper location conversions 
+          b_x = (keeper_x+1) * 54.4
+          b_y = keeper_y * 83.6
+          if a == 0:
+               return False
+          distance = abs(a_x*b_y - a_y*b_x) / a
+               
+          return distance < 1
+
+     if shot_incoming(raw_obs) == False:
+          return False
 
 #keeper reward function
 def keeper_reward(prev_obs, obs, duty_ok, memory):
@@ -113,6 +143,14 @@ if __name__ == "__main__":
     print(shot_incoming(obs))
     obs = {'ball': [-0.6, 0.0, 0.1], 'ball_direction': [-0.05, 0.03, 0.0]}
     print(shot_incoming(obs))
+
+    #check_shot_position (B4) tests
+    obs = {'left_team': [[-1.0, 0.0]], 'ball': [-0.8, 0.0, 0.1], 'ball_direction': [-0.02, 0.0, 0.0]}
+    print("B4 on the line (expect True):", check_shot_position(obs, 0, None))
+    obs = {'left_team': [[-1.0, 0.03]], 'ball': [-0.8, 0.0, 0.1], 'ball_direction': [-0.02, 0.0, 0.0]}
+    print("B4 2.5 m off the line (expect False):", check_shot_position(obs, 0, None))
+    obs = {'left_team': [[-1.0, 0.0]], 'ball': [-0.8, 0.0, 0.1], 'ball_direction': [0.02, 0.0, 0.0]}
+    print("B4 no shot coming (expect False):", check_shot_position(obs, 0, None))
 
     #network test
     net = KeeperNet()
