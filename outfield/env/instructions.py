@@ -39,11 +39,15 @@ TRANSITION = ("none", "counter_press", "recover", "break")           # T0-T3
 V1_DEFENDING = (1, 2, 4, 5, 7)
 V1_ATTACKING = (1, 2, 3, 4)
 V1_TRANSITION = (0, 2)
-# Keeper duties (agreed with G, 2026-11-24): D0 none, D8 sweep; A0 none,
-# A1 hold shape (a spot near our goal), A2 support (available for a back
-# pass). Short vs long distribution is learned (risk / tempo dials), not a duty.
-KEEPER_DEFENDING = (0, 8)
+# Keeper duties (agreed with G, 2026-11-24): D0 none, D1 hold zone (between
+# the posts: the centre of our goal line, 3.7 m = half the goal's width),
+# D8 sweep; A0 none, A1 hold shape (a spot near our goal), A2 support
+# (available for a back pass). Short vs long distribution is learned
+# (risk / tempo dials), not a duty.
+KEEPER_DEFENDING = (0, 1, 8)
 KEEPER_ATTACKING = (0, 1, 2)
+KEEPER_ZONE = (-54.4, 0.0)       # metres, team frame: the centre of our goal line
+KEEPER_ZONE_RADIUS_M = 3.7
 ROLE_FAMILIES = ("GK", "CB", "FB", "DM", "CM", "AM", "W", "ST", "none")
 SIDES = ("left", "centre", "right")
 DIALS = ("line_height", "press_trigger", "width", "tempo", "risk", "compactness")
@@ -256,7 +260,9 @@ def _targets(ins: Instruction, i, rng, formation, us_pos, them_pos, present, opp
     if ins.defending in (1, 7) or ins.attacking in (1,):  # zones, line, shape
         ins.anchor = (float(home[0] + rng.normal(0, 3)), float(home[1] + rng.normal(0, 3)))
         ins.radius_m = float(rng.uniform(5, 10))
-    if ins.anchor is not None and ins.role == 0:  # the keeper's spot stays in front of the goal line
+    if ins.role == 0 and ins.defending == 1:  # keeper's zone: between the posts (A1 shares this anchor)
+        ins.anchor, ins.radius_m = KEEPER_ZONE, KEEPER_ZONE_RADIUS_M
+    elif ins.anchor is not None and ins.role == 0:  # his A1 spot stays in front of the goal line
         ins.anchor = (max(ins.anchor[0], -52.0), ins.anchor[1])
     if ins.defending in (7, 8):  # hold line, and the keeper's sweep (training_plan §1: D8 line height)
         ins.line_height = float(rng.uniform(0.1, 0.9))
@@ -269,9 +275,13 @@ def _targets(ins: Instruction, i, rng, formation, us_pos, them_pos, present, opp
     if ins.defending == 4:  # cover: a teammate (not the keeper)
         mates = [j for j in range(1, N) if present[j] and j != i]
         ins.mate = int(rng.choice(mates)) if mates else None
-    if ins.attacking == 3:  # width: the side goes in the anchor's y (proposal: I3 has no side field)
+    # One anchor serves both duties: width and run in behind read only its y
+    # (the side; the channel), so a zone's anchor near home already gives them.
+    if ins.attacking == 3 and ins.anchor is None:  # width: the side goes in the anchor's y
         side = 1.0 if home[1] >= 0 else -1.0
         ins.anchor = (float(home[0]), side * 30.0)
+    if ins.attacking == 4 and ins.anchor is None:  # run in behind: his channel is the anchor's y
+        ins.anchor = (float(home[0]), float(home[1]))
 
 
 def preset(name: str, roles, formation, us_pos, them_pos, present, them_present) -> Plan:

@@ -4,7 +4,7 @@
 
 The wrapper sits between the game and every network. Raw game data goes in, and each player gets 960 numbers out. Five action choices per player go in, and one game command per player comes out. **Build against the shapes on this page. If one has to change, it changes here first.**
 
-Status: everything below works and is tested, except where it says **provisional** (the instruction layout) or **to be decided** (rewards).
+Status: everything below works and is tested (duty checks added 2026-11-26), except where it says **provisional** (the instruction layout) or **to be decided** (rewards).
 
 ---
 
@@ -109,14 +109,14 @@ The sections and sizes come from `docs/training_plan.md` §2.1. **The order insi
 - With `instructions=None`, the built-in sampler supplies them. It is on by default, `sampler=None` turns it off, and it is seeded by the env's seed.
 
 **What the sampler draws.** It re-draws the whole team every 30–60 s of game time:
-- **Random draws use v1 duties only.** Defending is D1, D2, D4, D5 or D7. Attacking is A1–A4. Transition is T0 or T2. The keeper gets D0 or D8 (with a line height), and A0, A1 (a spot near our goal) or A2 (available for a back pass).
+- **Random draws use v1 duties only.** Defending is D1, D2, D4, D5 or D7. Attacking is A1–A4. Transition is T0 or T2. The keeper gets D0, D1 (hold zone between the posts: anchor at the centre of our goal line, radius 3.7 m) or D8 (with a line height), and A0, A1 (a spot near our goal) or A2 (available for a back pass).
 - **Targets match the duty.** Mark gets an opponent (nearer ones are likelier). Cover gets a teammate. Hold zone and hold shape get an anchor near the player's kick-off spot.
 - **20% of draws are presets:** high press, low block, possession, counter, wing play or false nine, built from v1 duties. Where a preset needs a duty that isn't in v1, the player gets the closest v1 duty (false nine: support instead of drop to receive).
 
 **Open items for M1 and G:**
 1. **Combination grammar.** Which duties may go together isn't written down anywhere. Until it is, draws are independent per player.
 2. **A3 width has no "side" field in I3.** Proposal: the anchor's y gives the side (±30 m).
-3. ~~Keeper duties.~~ **Settled with G (2026-11-24):** defending D0 none, D8 sweep; attacking A0 none, A1 hold shape (a spot near our goal), A2 support (available for a back pass). Short vs long distribution stays learned through the risk and tempo dials; it is not a duty. Set-piece positions come with I5 later.
+3. ~~Keeper duties.~~ **Settled with G (2026-11-24):** defending D0 none, D1 hold zone (between the posts: the centre of our goal line, 3.7 m; added 2026-11-26), D8 sweep; attacking A0 none, A1 hold shape (a spot near our goal), A2 support (available for a back pass). Short vs long distribution stays learned through the risk and tempo dials; it is not a duty. Set-piece positions come with I5 later.
 4. **The memory block.** "Last 3 actions" is squeezed into 3 numbers (class ÷ 3) so the block stays at 6, as §2.1 says.
 
 ## 6. Episodes, rewards, info
@@ -125,7 +125,51 @@ The sections and sizes come from `docs/training_plan.md` §2.1. **The order insi
 - **`truncated`:** a drill's time limit, so returns can be bootstrapped.
 - **`info["outcome"]`** at the end: `goal_for`, `goal_against`, `lost_ball`, `out_of_play`, `time`, `other`.
 - **`rewards`** is a dict of `float32[11]`. **To be decided:** the reward terms need a team discussion first. v1 has only a placeholder, `score` (+1 for a goal for, −1 against, for every present player), so the loop and a PPO smoke test can run. New terms will be new keys, so the signature won't change.
-- **`info["duty_ok"]`** is NaN until the duty checks land (week 2). `info["plan"]` is the name of the current instruction draw (`random`, a preset name, or `given`). `info["raw"]` holds the raw observations, for debugging.
+- **Duty checks** (`outfield/env/duties.py`): see §6.1. `info["plan"]` is the name of the current instruction draw (`random`, a preset name, or `given`). `info["raw"]` holds the raw observations, for debugging.
+
+### 6.1 Duty checks
+
+Every step, for every player: is he doing his job right now?
+
+| Field | Shape | Meaning |
+|---|---|---|
+| `info["duty_ok"]` | float32[11] | **1.0 met, 0.0 not met, NaN the duty doesn't apply.** Met = in position, or closing in on the target at ≥ 1 m/s (0.5 m nearer over 0.5 s) |
+| `info["duty_strict"]` | float32[11] | in position only, without the closing-in credit (H1's "in position" share) |
+| `info["duty_active"]` | int[11] | which duty was judged: an index into `duties.DUTY_CODES` (`"D1"`, `"A2"`, `"T2"`, `"GK_check"`, ...), −1 none |
+| `info["duty_target"]` | float32[11, 2] | the spot the duty heads for, metres, team frame; NaN when none |
+
+**Reading it in a reward:** `duty_ok[i] == True` or `== 1.0`. **Never `if duty_ok[i]:`**, because NaN counts as true in Python.
+
+**Which duty is judged.** The 1 s possession memory decides who has the ball:
+- we have it: his attacking duty, except for the player on the ball;
+- they have it: his defending duty. T2 recover replaces it for the first 5 s after we lose the ball, if his transition duty is T2;
+- loose for more than 1 s: his defending duty, if it is one that applies then (D1, D7, D8).
+
+Duty 0 and duties outside v1 give NaN, never a fail. Each player's duty and targets are read from the block he received (`instructions.decode`), so instructions passed in by the manager are judged the same way as the sampler's.
+
+| Duty | Applies | In position (`ok`) |
+|---|---|---|
+| D1 hold zone | ball not ours | within the radius of the anchor, shifted 30 % toward the ball (at most 10 m) |
+| D2 press | their carrier within 10 + 20 × press intensity m | ≤ 2 m from the carrier |
+| D4 cover | they have it | 5–10 m from the teammate in the block, goal-side of him |
+| D5 mark | they have it | ≤ 3 m from the opponent in the block, goal-side. Target leads him (velocity ×10) |
+| D7 hold line | ball not ours | within 2 m of the line (line height 0 → 12 m from our goal, 1 → 52 m) and of the other D7 players' mean x |
+| A1 hold shape | we have it, someone else is on it | as D1 |
+| A2 support | as A1 | 8–15 m from our carrier, no opponent within 1.5 m of the passing line |
+| A3 width | as A1 | within 5 m of the touchline on the anchor's side (y > 0: left) |
+| A4 run in behind | as A1 | onside within 3 m of their offside line, or beyond it running forward at > 3 m/s. Channel = the anchor's y |
+| T2 recover | first 5 s after we lose it | **strict:** within 5 m of his defensive spot and goal-side of the ball, or sprinting toward it (≥ 5 m/s, within 45°). Closing in at 1 m/s does not count |
+| Keeper D1 | ball not ours | within 3.7 m of the centre of our goal line (no shift) |
+| Keeper D8 sweep | ball not ours, in our half | ≥ 10 m off his line and behind our line, or the ball is loose behind our line |
+| Keeper A1 | as A1 | within the radius (default 6 m) of his spot, shifted 10 % toward the ball (at most 5 m) |
+| Keeper A2 | as A1, and our carrier in our half | behind the carrier, 10–35 m from him, ≤ 20 m from goal, no opponent within 2 m of the passing line |
+
+The numbers are constants at the top of `duties.py`. D1, D2, D4, D7, D8, A2 and A3 reuse the duty lab's classes; Mark and A4 are re-written with the ×10 velocity rule.
+
+**Keeper plug-in (G).** `OutfieldEnv(..., keeper_check=fn)`, with `fn(view, slot, instruction) -> True | False | None`. It scores slot 0 while his defending duty is D0 and they have the ball (`duty_active` = `"GK_check"`): True gives 1.0, False 0.0, None NaN.
+- **Arguments:** `view` is the raw left-team observation with the possession memory as owner, and `instruction` is his decoded block.
+- **Returning None** on steps where the check doesn't apply (no shot coming) keeps those steps out of "not met".
+- **With `VecEnv`,** pass a module-level function so it can be sent to the worker processes.
 
 **`reset(seed=s)` replays game *s* exactly** on a fresh engine. `reset()` with no seed starts the next game on the same engine. A finished game in `VecEnv` resets by itself. Its last observation is in `infos[k]["final_obs"]`.
 
@@ -147,4 +191,4 @@ Measured with `python -m outfield.env.bench` on a 10-core Mac (4 performance cor
 - Our team on the right (mirroring).
 - Opponents other than the game's AI (the scripted team, self-play).
 - Reward terms.
-- Duty checks (week 2: they will port `grf_tools/duty_lab/duties.py` with the ×10 velocity rule).
+- Outcome scoring for ball-winning duties (balls won, time to win), and checks for non-v1 duties (NaN for now).

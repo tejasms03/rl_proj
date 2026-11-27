@@ -67,8 +67,8 @@ def test_sampler_draws_v1_duties_and_presets():
     env = OutfieldEnv("11_vs_11_easy_stochastic", seed=1)
     try:
         env.reset()
-        names = set()
-        for seed in range(12):
+        names, drawn = set(), set()
+        for seed in range(40):
             env.sampler.reset(seed)
             plan = env.sampler(0, env.raw_list[0]["left_team_roles"], env.formation,
                                env.formation, env.formation, env.present, env.present)
@@ -80,8 +80,12 @@ def test_sampler_draws_v1_duties_and_presets():
                         assert p.attacking in ins.KEEPER_ATTACKING
                         if p.defending == 8:
                             assert p.line_height > 0, "sweep needs a line height"
-                        if p.attacking == 1:
+                        if p.defending == 1:
+                            assert p.anchor == ins.KEEPER_ZONE and p.radius_m == ins.KEEPER_ZONE_RADIUS_M, \
+                                "hold zone: between the posts"
+                        elif p.attacking == 1:
                             assert p.anchor[0] >= -52.0, "his spot is in front of the goal line"
+                        drawn.add(p.defending)
                     continue
                 assert p.defending in ins.V1_DEFENDING + (0,)
                 assert p.attacking in ins.V1_ATTACKING + (0,)
@@ -90,6 +94,16 @@ def test_sampler_draws_v1_duties_and_presets():
                 if p.defending == 4:
                     assert p.mate is not None and p.mate != i
         assert "random" in names
+        assert 1 in drawn, "the keeper's hold zone gets drawn"
+        # The block carries it: anchor and radius survive encode / decode.
+        k = ins.Instruction(role=0, slot=0, defending=1, anchor=ins.KEEPER_ZONE,
+                            radius_m=ins.KEEPER_ZONE_RADIUS_M)
+        row = ins.encode(ins.Plan([k] + [ins.Instruction(role=-1, slot=j) for j in range(1, 11)], {}),
+                         np.array([True] + [False] * 10))[0]
+        back = ins.decode(row)
+        assert back.defending == 1
+        np.testing.assert_allclose(back.anchor, ins.KEEPER_ZONE, atol=1e-4)
+        assert abs(back.radius_m - ins.KEEPER_ZONE_RADIUS_M) < 1e-4
     finally:
         env.close()
 
