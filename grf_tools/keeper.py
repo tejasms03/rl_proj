@@ -64,10 +64,10 @@ def check_shot_position(raw_obs, slot, instruction):
           return distance < 1
 
      if shot_incoming(raw_obs) == False:
-          return False
+          return None
 
 #keeper reward function
-def keeper_reward(prev_obs, obs, duty_ok, memory):
+def keeper_reward(prev_obs, obs, duty_ok, memory, duty=None):
      reward = 0
 
      keeper_x = obs["left_team"][0][0] #goal line x = -1
@@ -80,7 +80,7 @@ def keeper_reward(prev_obs, obs, duty_ok, memory):
      who_owns = obs["ball_owned_player"] #0 = the keeper, -1 = nobody
      
      #inside the posts
-     if keeper_x < -0.95 and abs(keeper_y) < 0.044:
+     if keeper_x < -0.95 and abs(keeper_y) < 0.044 and duty != "D8":
           reward += 0.001
 
      #opponents score

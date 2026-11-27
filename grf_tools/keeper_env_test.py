@@ -16,8 +16,9 @@ import argparse
 import numpy as np
 import torch
 
-from grf_tools.keeper import KeeperNet, keeper_reward
+from grf_tools.keeper import KeeperNet, check_shot_position, keeper_reward
 from outfield.env import OutfieldEnv, random_actions
+from outfield.env.duties import DUTY_CODES
 
 HEADS = ("move", "speed", "ball", "defend")  # the wrapper's names for heads A-D
 
@@ -47,7 +48,8 @@ def main() -> None:
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
     net = KeeperNet()
-    env = OutfieldEnv(args.scenario, seed=1, keeper="agent", render=args.watch)
+    env = OutfieldEnv(args.scenario, seed=1, keeper="agent", render=args.watch,
+                      keeper_check=check_shot_position)  # B4 feeds duty_ok while his duty is D0
     blocked_picks = 0
     total = 0.0
     try:
@@ -63,11 +65,13 @@ def main() -> None:
 
             prev_raw = env.raw_list[0]  # the photo before the step (our team = left)
             obs, rewards, terminated, truncated, info = env.step(actions)
-            reward = keeper_reward(prev_raw, info["raw"][0], info["duty_ok"][0] == 1, memory)
+            k = int(info["duty_active"][0])  # which duty was judged: index into DUTY_CODES, -1 none
+            duty = DUTY_CODES[k] if k >= 0 else None  # e.g. "D1", "D8"; -1 would wrongly pick the last code
+            reward = keeper_reward(prev_raw, info["raw"][0], info["duty_ok"][0] == 1, memory, duty=duty)
             total += reward
             print(f"{step:4d}  move {choice['move']:2d}  speed {choice['speed']}  "
                   f"ball {choice['ball']}  defend {choice['defend']}  power {choice['power']:.2f}  "
-                  f"value {value:+.3f}  reward {reward:+.3f}"
+                  f"value {value:+.3f}  duty {duty or '-':8s} ok {info['duty_ok'][0]:.0f}  reward {reward:+.3f}"
                   + ("  (overridden)" if info["overridden"][0] else ""))
             if terminated or truncated:
                 print("episode ended:", info["outcome"])
