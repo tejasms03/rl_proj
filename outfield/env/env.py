@@ -19,8 +19,9 @@ Interface (docs/env_wrapper.md):
   instructions     float32[11, 85] or None (None = the built-in sampler, if any)
   rewards          {"score": float32[11]}: placeholder (goal for +1, against -1);
                    the real reward terms are planned separately
-  info             overridden bool[11], duty_ok float32[11] (NaN until duty checks
-                   land), kicks (events), outcome, plan (name), raw (raw obs)
+  info             overridden bool[11], duty_ok / duty_strict float32[11] (1 met,
+                   0 not, NaN doesn't apply), duty_active int[11], duty_target
+                   float32[11, 2] (duties.py), kicks (events), outcome, plan, raw
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ import gfootball.env as football_env
 
 from outfield.config import TRAINING_CONFIG
 from outfield.env import actions as act
+from outfield.env import duties as du
 from outfield.env import instructions as ins
 from outfield.env import observation as ob
 from outfield.env.possession import Possession
@@ -48,7 +50,7 @@ class OutfieldEnv:
     def __init__(self, scenario: str = "11_vs_11_easy_stochastic", seed: int = 0, *,
                  ai_on_ball: bool = True, keeper: str = "builtin",
                  sampler: ins.Sampler | None | str = "default", render: bool = False,
-                 config: dict | None = None):
+                 config: dict | None = None, keeper_check=None):
         global _ENGINE_TICKS
         assert keeper in ("builtin", "agent")
         self.scenario, self.seed, self.render = scenario, seed, render
@@ -68,6 +70,7 @@ class OutfieldEnv:
         self.encoder = ob.Encoder(self.config.get("pitch_condition", "normal"))
         self.possession = Possession()
         self.memory = ins.Memory()
+        self.duties = du.DutyChecker(keeper_check)
         self._env = None
         self._env_seed = None
 
@@ -98,6 +101,7 @@ class OutfieldEnv:
         self.possession(raw_list[0])
         self.memory.reset()
         self.adapter.reset()
+        self.duties.reset()
         if self.sampler is not None:
             self.sampler.reset(None if seed is None else seed)
         us = np.zeros((N, 2), np.float32)
@@ -132,8 +136,13 @@ class OutfieldEnv:
         timed_out = raw["steps_left"] <= 0
         terminated = bool(done and (not timed_out or is_full_match(self.scenario)))
         truncated = bool(done and not terminated)
-        info = {"overridden": overridden, "duty_ok": np.full(N, np.nan, np.float32),
-                "kicks": kicks, "outcome": _outcome(raw, delta, self.possession.team) if done else None,
+        view = dict(raw, ball_owned_team=self.possession.owner[0],
+                    ball_owned_player=self.possession.owner[1])
+        duty_ok, duty_strict, duty_active, duty_target = self.duties(
+            view, self.manager_part, self.present, self.formation)
+        info = {"overridden": overridden, "duty_ok": duty_ok, "duty_strict": duty_strict,
+                "duty_active": duty_active, "duty_target": duty_target, "kicks": kicks,
+                "outcome": _outcome(raw, delta, self.possession.team) if done else None,
                 "plan": self.plan_name, "raw": raw_list}
         return obs, rewards, terminated, truncated, info
 

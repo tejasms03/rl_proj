@@ -275,9 +275,13 @@ def _targets(ins: Instruction, i, rng, formation, us_pos, them_pos, present, opp
     if ins.defending == 4:  # cover: a teammate (not the keeper)
         mates = [j for j in range(1, N) if present[j] and j != i]
         ins.mate = int(rng.choice(mates)) if mates else None
-    if ins.attacking == 3:  # width: the side goes in the anchor's y (proposal: I3 has no side field)
+    # One anchor serves both duties: width and run in behind read only its y
+    # (the side; the channel), so a zone's anchor near home already gives them.
+    if ins.attacking == 3 and ins.anchor is None:  # width: the side goes in the anchor's y
         side = 1.0 if home[1] >= 0 else -1.0
         ins.anchor = (float(home[0]), side * 30.0)
+    if ins.attacking == 4 and ins.anchor is None:  # run in behind: his channel is the anchor's y
+        ins.anchor = (float(home[0]), float(home[1]))
 
 
 def preset(name: str, roles, formation, us_pos, them_pos, present, them_present) -> Plan:
